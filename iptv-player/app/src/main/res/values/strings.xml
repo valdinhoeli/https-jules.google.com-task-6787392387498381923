@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IPTV Player 4K</string>
+
+    <string name="group_all">Todos</string>
+    <string name="group_favorites">★ Favoritos</string>
+    <string name="group_recents">Recentes</string>
+    <string name="group_none">Sem grupo</string>
+
+    <plurals name="channel_count">
+        <item quantity="one">%d canal</item>
+        <item quantity="other">%d canais</item>
+    </plurals>
+
+    <string name="action_search">Buscar canal</string>
+    <string name="action_playlists">Minhas listas</string>
+    <string name="action_add">Adicionar lista</string>
+    <string name="action_refresh">Atualizar lista</string>
+    <string name="action_edit">Editar lista atual</string>
+    <string name="action_delete">Excluir lista atual</string>
+    <string name="action_settings">Configurações do player</string>
+    <string name="action_device">Compatibilidade 4K do aparelho</string>
+    <string name="action_about">Sobre</string>
+
+    <string name="empty_title">Nenhuma lista IPTV</string>
+    <string name="empty_text">Adicione uma lista M3U/M3U8 por link, login Xtream Codes ou arquivo do aparelho.</string>
+    <string name="empty_no_channels">Nenhum canal encontrado</string>
+    <string name="retry">Tentar novamente</string>
+
+    <string name="dlg_add_title">Adicionar lista IPTV</string>
+    <string name="dlg_edit_title">Editar lista IPTV</string>
+    <string name="field_name">Nome da lista</string>
+    <string name="type_url">Link</string>
+    <string name="type_xtream">Xtream</string>
+    <string name="type_file">Arquivo</string>
+    <string name="field_url">URL da lista (http://…/lista.m3u)</string>
+    <string name="field_server">Servidor (http://dominio:porta)</string>
+    <string name="field_username">Usuário</string>
+    <string name="field_password">Senha</string>
+    <string name="field_output">Formato do stream</string>
+    <string name="output_ts">MPEG-TS</string>
+    <string name="output_hls">HLS (m3u8)</string>
+    <string name="pick_file">Escolher arquivo .m3u</string>
+    <string name="no_file">Nenhum arquivo selecionado</string>
+    <string name="field_user_agent">User-Agent (opcional)</string>
+    <string name="user_agent_helper">Deixe vazio para usar o padrão (VLC)</string>
+    <string name="save">Salvar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="delete">Excluir</string>
+    <string name="ok">OK</string>
+
+    <string name="err_name">Informe um nome</string>
+    <string name="err_url">Informe uma URL válida (http:// ou https://)</string>
+    <string name="err_required">Campo obrigatório</string>
+    <string name="err_file">Selecione um arquivo</string>
+    <string name="err_no_picker">Seletor de arquivos indisponível neste aparelho. Use um link.</string>
+    <string name="err_no_channels">Nenhum canal encontrado na lista</string>
+    <string name="err_file_access">Não foi possível ler o arquivo da lista</string>
+    <string name="err_load">Erro ao carregar lista: %s</string>
+
+    <string name="confirm_delete">Excluir a lista \"%s\"?</string>
+    <string name="fav_added">Adicionado aos favoritos</string>
+    <string name="fav_removed">Removido dos favoritos</string>
+    <string name="add_new_playlist">+ Adicionar nova lista</string>
+    <string name="loading_playlist">Carregando lista…</string>
+
+    <string name="settings_title">Configurações do player</string>
+    <string name="set_force_max">Sempre usar a qualidade máxima disponível (4K/Full HD)</string>
+    <string name="set_large_buffer">Buffer maior (internet instável)</string>
+    <string name="set_match_display">Mudar a TV para 4K ao reproduzir vídeo 4K</string>
+    <string name="set_pip">Picture-in-Picture ao sair do player</string>
+
+    <string name="device_title">Compatibilidade do aparelho</string>
+    <string name="about_text">IPTV Player 4K %s\n\nPlayer de listas IPTV (M3U, M3U8, Xtream Codes) com suporte a HLS, MPEG-TS, DASH e RTSP em SD, HD, Full HD e 4K, incluindo HDR quando o aparelho suporta.\n\nO app não fornece canais nem conteúdo: use apenas listas às quais você tem direito.</string>
+
+    <string name="q_title">Qualidade do vídeo</string>
+    <string name="audio_title">Faixa de áudio</string>
+    <string name="sub_title">Legendas</string>
+    <string name="auto">Automático</string>
+    <string name="off">Desligado</string>
+    <string name="no_options">Nenhuma opção disponível neste canal</string>
+    <string name="resize_fit">Ajustar à tela</string>
+    <string name="resize_zoom">Zoom (preencher)</string>
+    <string name="resize_fill">Esticar</string>
+    <string name="reconnecting">Reconectando… (%1$d/%2$d)</string>
+    <string name="next_channel">Próximo canal</string>
+    <string name="back">Voltar</string>
+    <string name="prev_channel">Canal anterior</string>
+    <string name="quality">Qualidade</string>
+    <string name="audio">Áudio</string>
+    <string name="subtitles">Legendas</string>
+    <string name="aspect">Proporção</string>
+    <string name="pip">Janela flutuante</string>
+
+    <string name="err_play_network">Falha de conexão com o servidor do canal.</string>
+    <string name="err_play_http">O servidor recusou o stream (HTTP). O canal pode estar fora do ar ou exigir outro User-Agent.</string>
+    <string name="err_play_format">Formato de stream não suportado.</string>
+    <string name="err_play_decoder">O aparelho não consegue decodificar este vídeo (codec/resolução não suportados).</string>
+    <string name="err_play_drm">Canal protegido por DRM não suportado.</string>
+    <string name="err_play_generic">Não foi possível reproduzir o canal.</string>
+</resources>
