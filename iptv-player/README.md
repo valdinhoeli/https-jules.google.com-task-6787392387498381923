@@ -21,7 +21,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.2.2.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.2.3.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -37,6 +37,13 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.2.3 — trailer**
+- Botão **Trailer** nos detalhes de filmes e séries, com o trailer informado pelo painel
+  Xtream (`youtube_trailer`) ou pela lista M3U (`trailer`, `tvg-trailer`, `youtube-trailer`)
+- Toca no player oficial do YouTube incorporado, em tela cheia; se o vídeo não puder ser
+  incorporado, oferece **Abrir no YouTube**
+- Sem trailer informado: **Buscar trailer** abre a busca "nome + ano + trailer" no YouTube
 
 **1.2.2 — abertura rápida**
 - A partir da segunda vez, a lista abre do "retrato" já processado (binário compacto e
