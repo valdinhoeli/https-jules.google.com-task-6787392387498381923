@@ -5,5 +5,5 @@
     <dimen name="hero_poster_w">120dp</dimen>
     <dimen name="hero_poster_h">180dp</dimen>
     <dimen name="details_backdrop_h">190dp</dimen>
-    <dimen name="epg_header_h">170dp</dimen>
+    <dimen name="epg_header_h">150dp</dimen>
 </resources>

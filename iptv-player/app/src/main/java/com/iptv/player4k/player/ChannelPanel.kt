@@ -54,6 +54,7 @@ class ChannelPanel(
     }
 
     fun show(list: List<Channel>, current: Int) {
+        b.tvStatus.visibility = View.GONE
         channels = list
         playing = current
         channelAdapter.notifyDataSetChanged()
@@ -129,6 +130,7 @@ class ChannelPanel(
             val v = ItemPanelChannelBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             val vh = VH(v)
             v.root.setOnFocusChangeListener { _, has ->
+                paint(v, has)
                 if (has) {
                     vh.bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.let { focusOn(it) }
                     poke()
@@ -153,6 +155,13 @@ class ChannelPanel(
             val p = Session.epg?.now(ch, now)
             v.tvPcNow.text = p?.title ?: ctx.getString(R.string.epg_no_info)
             v.pcProgress.setProgressCompat(((p?.progress(now) ?: 0f) * 1000).toInt(), false)
+            paint(v, v.root.hasFocus())
+        }
+
+        /** item focado: fundo claro com texto escuro */
+        private fun paint(v: ItemPanelChannelBinding, focused: Boolean) {
+            v.tvPcName.setTextColor(if (focused) 0xFF141824.toInt() else 0xFFFFFFFF.toInt())
+            v.tvPcNow.setTextColor(if (focused) 0xFF3C4458.toInt() else 0xD0FFFFFF.toInt())
         }
     }
 

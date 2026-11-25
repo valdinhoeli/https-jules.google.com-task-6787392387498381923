@@ -77,7 +77,7 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private val colRowFocus = c(R.color.epg_row_focus)
     private val colCellFocus = c(R.color.epg_cell_focus)
     private val colTextDark = c(R.color.epg_text_dark)
-    private val dateFmt = java.text.SimpleDateFormat("EEE, d 'de' MMM  HH:mm", java.util.Locale.getDefault())
+    private val dateFmt = java.text.SimpleDateFormat("EEE, d 'de' MMM  HH:mm", java.util.Locale("pt", "BR"))
 
     /** canal tocando na pré-visualização (marcado com ▶) */
     var playingUrl: String? = null

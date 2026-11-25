@@ -782,6 +782,15 @@ class PlayerActivity : AppCompatActivity() {
                 if (event.repeatCount == 0) openPanel()
                 return true
             }
+            // OK num filme/episódio: mostra a sinopse e os controles (mesmo carregando)
+            if (isOk && controllerHidden && channels.getOrNull(index)?.kind != ContentKind.LIVE) {
+                consumedKey = code
+                if (event.repeatCount == 0) {
+                    channels.getOrNull(index)?.let { bindBanner(ctlBanner, it) }
+                    b.playerView.showController()
+                }
+                return true
+            }
             val delta = when (code) {
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_MEDIA_NEXT -> +1
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> -1
