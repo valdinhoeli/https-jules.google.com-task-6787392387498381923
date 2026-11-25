@@ -123,8 +123,12 @@
         android:background="@drawable/gradient_bottom"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
-        android:paddingTop="32dp"
+        android:paddingTop="56dp"
         android:paddingBottom="12dp">
+
+        <include
+            android:id="@+id/bannerCtl"
+            layout="@layout/view_epg_banner" />
 
         <LinearLayout
             android:id="@+id/timeRow"

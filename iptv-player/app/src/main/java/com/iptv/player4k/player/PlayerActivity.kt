@@ -259,6 +259,7 @@ class PlayerActivity : AppCompatActivity() {
         tvTitle.text = ch.name
         tvInfo.text = ch.group
         tvBadge.isVisible = false
+        techLabel = ""
 
         // limpa escolhas manuais de faixas do canal anterior
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
@@ -305,33 +306,60 @@ class PlayerActivity : AppCompatActivity() {
         )
     }
 
-    /** "● AO VIVO  Jornal · 20:00–21:00   A seguir 21:00 Novela" */
+    /** Resolução/codec do vídeo atual, mostrado no canto da faixa ("Full HD • HEVC"). */
+    private var techLabel: String = ""
+
+    private val ctlBanner by lazy {
+        com.iptv.player4k.databinding.ViewEpgBannerBinding.bind(b.playerView.findViewById(R.id.bannerCtl))
+    }
+
+    /** Atualiza as duas faixas de baixo (a do controle e a da troca de canal). */
     private fun bindEpg(ch: Channel) {
+        tvEpg.isVisible = false
+        bindBanner(ctlBanner, ch)
+        bindBanner(b.bannerOsd, ch)
+    }
+
+    private fun bindBanner(v: com.iptv.player4k.databinding.ViewEpgBannerBinding, ch: Channel) {
+        val live = ch.kind == ContentKind.LIVE
         val epg = Session.epg
         val now = System.currentTimeMillis()
-        val cur = if (ch.kind == ContentKind.LIVE) epg?.now(ch, now) else null
+
+        val logo = ch.logo ?: epg?.logo(ch)
+        val art = com.iptv.player4k.util.CoverArt.channel(ch.name)
+        if (logo.isNullOrBlank()) v.ivBnLogo.setImageDrawable(art)
+        else if (v.ivBnLogo.tag != logo) {
+            v.ivBnLogo.tag = logo
+            v.ivBnLogo.load(logo) { error(art) }
+        }
+
+        v.tvBnNumber.isVisible = live
+        v.tvBnNumber.text = (index + 1).toString()
+        v.tvBnChannel.text = if (live) ch.name else ch.group
+        v.tvBnTech.text = techLabel
+        v.tvBnTech.isVisible = techLabel.isNotEmpty()
+        v.tvBnLive.isVisible = live
+
+        val cur = if (live) epg?.now(ch, now) else null
         if (cur == null) {
-            tvEpg.isVisible = false
-            b.osdEpg.isVisible = false
+            v.tvBnTitle.text = if (live) getString(R.string.epg_no_info) else ch.name
+            v.bnTimeRow.isVisible = false
+            v.tvBnNext.isVisible = false
+            v.tvBnDesc.text = if (live) null else ch.description
+            v.tvBnDesc.isVisible = !v.tvBnDesc.text.isNullOrBlank()
             return
         }
+        v.tvBnTitle.text = cur.title
+        v.bnTimeRow.isVisible = true
+        v.tvBnStart.text = Fmt.time(cur.start)
+        v.tvBnEnd.text = Fmt.time(cur.stop)
+        v.bnProgress.setProgressCompat((cur.progress(now) * 1000).toInt(), false)
+        v.tvBnRemaining.text = getString(R.string.epg_remaining, ((cur.stop - now) / 60_000L).toInt().coerceAtLeast(1))
+        v.tvBnDesc.text = cur.desc
+        v.tvBnDesc.isVisible = !cur.desc.isNullOrBlank()
         val next = epg?.next(ch, now)
-        val red = ContextCompat.getColor(this, R.color.live_red)
-        tvEpg.text = SpannableStringBuilder().apply {
-            append("● ")
-            setSpan(ForegroundColorSpan(red), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            val st = length
-            append(cur.title)
-            setSpan(StyleSpan(Typeface.BOLD), st, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            append("  ${Fmt.range(cur.start, cur.stop)}")
-            if (next != null) append("   ·   ${getString(R.string.epg_next)} ${Fmt.time(next.start)} ${next.title}")
-        }
-        tvEpg.isVisible = true
-        b.osdEpg.isVisible = true
-        b.tvOsdNow.text = "${cur.title}  ${Fmt.range(cur.start, cur.stop)}"
-        b.osdProgress.setProgressCompat((cur.progress(now) * 1000).toInt(), false)
-        b.tvOsdNext.isVisible = next != null
-        b.tvOsdNext.text = next?.let { "${getString(R.string.epg_next)} ${Fmt.time(it.start)} · ${it.title}" }
+        v.tvBnNext.isVisible = next != null
+        v.tvBnNext.text = next?.let { "${getString(R.string.epg_next)}  ${Fmt.time(it.start)} · ${it.title}" }
     }
 
     private fun startMedia(ch: Channel) {
@@ -484,7 +512,8 @@ class PlayerActivity : AppCompatActivity() {
         ).joinToString(" • ")
         tvInfo.text = "${ch.group}  |  $info"
 
-        if (b.osd.isVisible) b.tvOsdInfo.text = listOfNotNull(res, hdr, "${f.width}x${f.height}").joinToString(" • ")
+        techLabel = listOfNotNull(res, hdr, VideoLabels.codec(f.sampleMimeType)).joinToString(" • ")
+        listOf(ctlBanner, b.bannerOsd).forEach { it.tvBnTech.text = techLabel; it.tvBnTech.isVisible = true }
 
         if (store.matchDisplayMode && Build.VERSION.SDK_INT >= 23) {
             matchDisplayMode(f.width, f.height, f.frameRate)
@@ -497,6 +526,13 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun setupControls() {
         val pv = b.playerView
+        pv.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+            if (visibility == View.VISIBLE) {
+                handler.removeCallbacks(hideOsd)
+                b.osd.isVisible = false
+                channels.getOrNull(index)?.let { bindBanner(ctlBanner, it) }
+            }
+        })
         pv.setShowNextButton(false)
         pv.setShowPreviousButton(false)
         pv.setShowFastForwardButton(false)
@@ -539,16 +575,13 @@ class PlayerActivity : AppCompatActivity() {
         playCurrent()
     }
 
+    /** Faixa de informações embaixo ao trocar de canal (some sozinha). */
     private fun showOsd(ch: Channel) {
-        b.tvOsdTitle.text = if (ch.kind == ContentKind.LIVE) "${index + 1}  ${ch.name}" else ch.name
-        b.tvOsdInfo.text = ch.group
-        val logo = ch.logo ?: Session.epg?.logo(ch)
-        val art = com.iptv.player4k.util.CoverArt.channel(ch.name)
-        if (logo.isNullOrBlank()) b.ivOsdLogo.setImageDrawable(art)
-        else b.ivOsdLogo.load(logo) { error(art) }
+        bindBanner(b.bannerOsd, ch)
+        if (b.playerView.isControllerFullyVisible) return // o controle já mostra a mesma faixa
         b.osd.isVisible = true
         handler.removeCallbacks(hideOsd)
-        handler.postDelayed(hideOsd, if (b.osdEpg.isVisible) 6_000 else 4_000)
+        handler.postDelayed(hideOsd, 6_000)
     }
 
     private fun cycleResize() {
