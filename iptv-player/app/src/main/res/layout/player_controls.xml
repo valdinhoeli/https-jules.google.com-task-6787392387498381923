@@ -37,6 +37,7 @@
 
             <TextView
                 android:id="@+id/tvTitle"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
@@ -58,6 +59,7 @@
 
             <TextView
                 android:id="@+id/tvInfo"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"

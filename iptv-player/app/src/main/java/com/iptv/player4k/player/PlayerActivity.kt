@@ -352,7 +352,7 @@ class PlayerActivity : AppCompatActivity() {
         v.tvBnNumber.text = (index + 1).toString()
         v.tvBnChannel.text = if (live) ch.name else ch.group
         v.tvBnTech.text = techLabel
-        v.tvBnTech.isVisible = techLabel.isNotEmpty()
+        v.tvBnTech.isVisible = false
         v.tvBnLive.isVisible = live
 
         val lp = v.ivBnLogo.layoutParams
@@ -586,7 +586,7 @@ class PlayerActivity : AppCompatActivity() {
         val res = VideoLabels.resolution(f.width, f.height)
         val hdr = VideoLabels.hdrName(f)
         tvBadge.text = listOfNotNull(res.replace(" UHD", "").replace(" QHD", ""), hdr).joinToString(" ")
-        tvBadge.isVisible = true
+        tvBadge.isVisible = false // visual limpo: qualidade só no botão HQ
 
         val info = listOfNotNull(
             "${f.width}x${f.height}",
@@ -598,7 +598,7 @@ class PlayerActivity : AppCompatActivity() {
         tvInfo.text = "${ch.group}  |  $info"
 
         techLabel = listOfNotNull(res, hdr, VideoLabels.codec(f.sampleMimeType)).joinToString(" • ")
-        listOf(ctlBanner, b.bannerOsd).forEach { it.tvBnTech.text = techLabel; it.tvBnTech.isVisible = true }
+
 
         if (store.matchDisplayMode && Build.VERSION.SDK_INT >= 23) {
             matchDisplayMode(f.width, f.height, f.frameRate)
