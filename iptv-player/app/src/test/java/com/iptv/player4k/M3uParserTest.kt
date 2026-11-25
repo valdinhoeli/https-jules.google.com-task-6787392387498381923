@@ -10,7 +10,7 @@ import org.junit.Test
 
 class M3uParserTest {
 
-    private fun parse(s: String) = M3uParser.parse(s.reader().buffered(), "Sem grupo")
+    private fun parse(s: String) = M3uParser.parse(s.reader().buffered(), "Sem grupo").channels
 
     @Test
     fun parsesAttributesAndTitle() {

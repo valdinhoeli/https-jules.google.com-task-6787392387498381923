@@ -2,6 +2,21 @@ package com.iptv.player4k.data
 
 import android.content.Context
 import org.json.JSONArray
+import org.json.JSONObject
+
+/** Posição salva de um filme/episódio. */
+class Progress(
+    val url: String,
+    val position: Long,
+    val duration: Long,
+    val updatedAt: Long,
+    val kind: ContentKind,
+    val refId: String?,
+    val title: String,
+) {
+    val fraction: Float get() = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
+    val inProgress: Boolean get() = position > 15_000 && fraction < 0.95f
+}
 
 /** Persistência simples (SharedPreferences) de listas, favoritos, recentes e ajustes. */
 class PlaylistStore(context: Context) {
@@ -21,7 +36,7 @@ class PlaylistStore(context: Context) {
 
     fun delete(id: String) {
         write(playlists().filterNot { it.id == id })
-        prefs.edit().remove("fav_$id").remove("rec_$id").apply()
+        prefs.edit().remove("fav_$id").remove("rec_$id").remove("prog_$id").remove("my_$id").apply()
         if (selectedId == id) selectedId = null
     }
 
@@ -67,6 +82,52 @@ class PlaylistStore(context: Context) {
         prefs.edit().putString("rec_$playlistId", arr.toString()).apply()
     }
 
+    // ---- Progresso de filmes/séries ----
+    fun progressMap(playlistId: String): Map<String, Progress> {
+        val o = runCatching { JSONObject(prefs.getString("prog_$playlistId", "{}")!!) }.getOrElse { JSONObject() }
+        val out = HashMap<String, Progress>()
+        o.keys().forEach { url ->
+            val e = o.optJSONObject(url) ?: return@forEach
+            out[url] = Progress(
+                url, e.optLong("p"), e.optLong("d"), e.optLong("t"),
+                runCatching { ContentKind.valueOf(e.optString("k")) }.getOrDefault(ContentKind.MOVIE),
+                e.optString("r").ifEmpty { null }, e.optString("n"),
+            )
+        }
+        return out
+    }
+
+    fun progress(playlistId: String, url: String): Progress? = progressMap(playlistId)[url]
+
+    fun saveProgress(playlistId: String, p: Progress) {
+        val all = progressMap(playlistId).toMutableMap()
+        all[p.url] = p
+        val keep = all.values.sortedByDescending { it.updatedAt }.take(MAX_PROGRESS)
+        val o = JSONObject()
+        keep.forEach {
+            o.put(it.url, JSONObject().put("p", it.position).put("d", it.duration).put("t", it.updatedAt)
+                .put("k", it.kind.name).put("r", it.refId ?: "").put("n", it.title))
+        }
+        prefs.edit().putString("prog_$playlistId", o.toString()).apply()
+    }
+
+    fun removeProgress(playlistId: String, url: String) {
+        val o = runCatching { JSONObject(prefs.getString("prog_$playlistId", "{}")!!) }.getOrElse { JSONObject() }
+        o.remove(url)
+        prefs.edit().putString("prog_$playlistId", o.toString()).apply()
+    }
+
+    // ---- Minha lista (filmes "m:<id>" e séries "s:<id>") ----
+    fun myList(playlistId: String): Set<String> =
+        prefs.getStringSet("my_$playlistId", emptySet())?.toSet() ?: emptySet()
+
+    fun toggleMyList(playlistId: String, key: String): Boolean {
+        val set = myList(playlistId).toMutableSet()
+        val added = if (key in set) { set.remove(key); false } else { set.add(key); true }
+        prefs.edit().putStringSet("my_$playlistId", set).apply()
+        return added
+    }
+
     // ---- Ajustes do player ----
     var forceMaxQuality: Boolean
         get() = prefs.getBoolean("set_force_max", false)
@@ -92,5 +153,6 @@ class PlaylistStore(context: Context) {
         private const val K_PLAYLISTS = "playlists"
         private const val K_SELECTED = "selected"
         private const val MAX_RECENTS = 40
+        private const val MAX_PROGRESS = 200
     }
 }

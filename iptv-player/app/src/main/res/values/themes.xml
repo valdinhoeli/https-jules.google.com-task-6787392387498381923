@@ -25,6 +25,31 @@
         <item name="android:windowFullscreen">true</item>
     </style>
 
+    <style name="TabText" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textSize">15sp</item>
+        <item name="textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="WhiteButton" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@android:color/white</item>
+        <item name="android:textColor">#0B0E14</item>
+        <item name="iconTint">#0B0E14</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="GhostButton" parent="Widget.Material3.Button">
+        <item name="backgroundTint">#4DFFFFFF</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="iconTint">@android:color/white</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="PosterShape">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
     <style name="PlayerButton">
         <item name="android:layout_width">52dp</item>
         <item name="android:layout_height">52dp</item>

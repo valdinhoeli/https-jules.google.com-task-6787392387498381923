@@ -16,14 +16,16 @@ class PlaylistRepository(private val context: Context) {
 
     fun hasCache(p: Playlist) = cacheFile(p).let { it.exists() && it.length() > 0 }
 
-    suspend fun load(p: Playlist, forceRefresh: Boolean): List<Channel> = withContext(Dispatchers.IO) {
+    suspend fun load(p: Playlist, forceRefresh: Boolean): M3uResult = withContext(Dispatchers.IO) {
         val file = cacheFile(p)
         if (forceRefresh || !hasCache(p)) fetch(p, file)
-        val channels = file.bufferedReader(Charsets.UTF_8).use {
+        val result = file.bufferedReader(Charsets.UTF_8).use {
             M3uParser.parse(it, context.getString(R.string.group_none))
         }
-        if (channels.isEmpty()) throw IOException(context.getString(R.string.err_no_channels))
-        channels
+        if (result.channels.isEmpty() && p.type != PlaylistType.XTREAM) {
+            throw IOException(context.getString(R.string.err_no_channels))
+        }
+        result
     }
 
     fun deleteCache(p: Playlist) {

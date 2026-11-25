@@ -50,7 +50,17 @@ import androidx.media3.ui.PlayerView
 import coil.load
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.iptv.player4k.R
+import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
+import androidx.core.content.ContextCompat
 import com.iptv.player4k.data.Channel
+import com.iptv.player4k.data.ContentKind
+import com.iptv.player4k.data.Progress
+import com.iptv.player4k.data.Session
+import com.iptv.player4k.util.Fmt
 import com.iptv.player4k.data.Http
 import com.iptv.player4k.data.PlaybackQueue
 import com.iptv.player4k.data.PlaylistStore
@@ -75,8 +85,23 @@ class PlayerActivity : AppCompatActivity() {
     private var mimeAttempt = 0
     private var retryCount = 0
     private var consumedKey = -1
-    /** Posição salva para retomar filmes/séries (VOD) ao voltar ao app. */
-    private var resumePositionMs = C.TIME_UNSET
+    private val isVod get() = channels.getOrNull(index)?.kind?.let { it != ContentKind.LIVE } == true
+    private val tvEpg by lazy { b.playerView.findViewById<TextView>(R.id.tvEpg) }
+
+    /** Salva o progresso de filmes/episódios a cada 10 s. */
+    private val progressSaver = object : Runnable {
+        override fun run() {
+            saveProgress()
+            handler.postDelayed(this, 10_000)
+        }
+    }
+    private val epgTicker = object : Runnable {
+        override fun run() {
+            channels.getOrNull(index)?.let { bindEpg(it) }
+            handler.postDelayed(this, 30_000)
+        }
+    }
+    private val nextEpisode = Runnable { if (index < channels.lastIndex) switchChannel(+1) }
 
     private val handler = Handler(Looper.getMainLooper())
     private val hideOsd = Runnable { b.osd.isVisible = false }
@@ -126,11 +151,16 @@ class PlayerActivity : AppCompatActivity() {
         if (channels.isEmpty()) return
         if (player == null) {
             initPlayer()
-            val resume = resumePositionMs
             playCurrent()
-            if (resume != C.TIME_UNSET) player?.seekTo(resume)
-            resumePositionMs = C.TIME_UNSET
         }
+        handler.postDelayed(progressSaver, 10_000)
+        handler.postDelayed(epgTicker, 30_000)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // a tela anterior volta (onResume) antes do onStop daqui: salva já
+        saveProgress()
     }
 
     override fun onStop() {
@@ -196,8 +226,11 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun releasePlayer() {
         handler.removeCallbacks(retryRunnable)
+        handler.removeCallbacks(progressSaver)
+        handler.removeCallbacks(epgTicker)
+        handler.removeCallbacks(nextEpisode)
+        saveProgress()
         player?.let {
-            resumePositionMs = if (!it.isCurrentMediaItemLive && it.currentPosition > 0) it.currentPosition else C.TIME_UNSET
             it.removeListener(listener)
             it.release()
         }
@@ -209,6 +242,7 @@ class PlayerActivity : AppCompatActivity() {
         val p = player ?: return
         val ch = channels[index]
         handler.removeCallbacks(retryRunnable)
+        handler.removeCallbacks(nextEpisode)
         retryCount = 0
         mimeAttempt = 0
         mimeCandidates = candidatesFor(ch.url)
@@ -226,9 +260,70 @@ class PlayerActivity : AppCompatActivity() {
             .clearOverridesOfType(C.TRACK_TYPE_TEXT)
             .build()
 
-        PlaybackQueue.playlist?.let { store.addRecent(it.id, ch.url) }
+        if (ch.kind == ContentKind.LIVE) PlaybackQueue.playlist?.let { store.addRecent(it.id, ch.url) }
+        val single = channels.size <= 1
+        b.playerView.findViewById<View>(R.id.btnPrev)?.isVisible = !single
+        b.playerView.findViewById<View>(R.id.btnNext)?.isVisible = !single
+        bindEpg(ch)
         showOsd(ch)
         startMedia(ch)
+        if (ch.kind != ContentKind.LIVE) resumeSaved(ch)
+    }
+
+    /** Retoma filmes/episódios de onde parou. */
+    private fun resumeSaved(ch: Channel) {
+        val pid = PlaybackQueue.playlist?.id ?: return
+        val saved = store.progress(pid, ch.url) ?: return
+        if (!saved.inProgress) return
+        player?.seekTo(saved.position)
+        Toast.makeText(this, getString(R.string.resuming_at, Fmt.clock(saved.position)), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun saveProgress() {
+        val p = player ?: return
+        val ch = channels.getOrNull(index) ?: return
+        if (ch.kind == ContentKind.LIVE || p.isCurrentMediaItemLive) return
+        val pid = PlaybackQueue.playlist?.id ?: return
+        val dur = p.duration
+        val pos = p.currentPosition
+        if (dur <= 0 || dur == C.TIME_UNSET || pos < 5_000) return
+        val ended = p.playbackState == Player.STATE_ENDED
+        store.saveProgress(
+            pid,
+            Progress(
+                url = ch.url, position = if (ended) dur else pos, duration = dur,
+                updatedAt = System.currentTimeMillis(), kind = ch.kind, refId = ch.refId, title = ch.name,
+            )
+        )
+    }
+
+    /** "● AO VIVO  Jornal · 20:00–21:00   A seguir 21:00 Novela" */
+    private fun bindEpg(ch: Channel) {
+        val epg = Session.epg
+        val now = System.currentTimeMillis()
+        val cur = if (ch.kind == ContentKind.LIVE) epg?.now(ch, now) else null
+        if (cur == null) {
+            tvEpg.isVisible = false
+            b.osdEpg.isVisible = false
+            return
+        }
+        val next = epg?.next(ch, now)
+        val red = ContextCompat.getColor(this, R.color.live_red)
+        tvEpg.text = SpannableStringBuilder().apply {
+            append("● ")
+            setSpan(ForegroundColorSpan(red), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            val st = length
+            append(cur.title)
+            setSpan(StyleSpan(Typeface.BOLD), st, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            append("  ${Fmt.range(cur.start, cur.stop)}")
+            if (next != null) append("   ·   ${getString(R.string.epg_next)} ${Fmt.time(next.start)} ${next.title}")
+        }
+        tvEpg.isVisible = true
+        b.osdEpg.isVisible = true
+        b.tvOsdNow.text = "${cur.title}  ${Fmt.range(cur.start, cur.stop)}"
+        b.osdProgress.setProgressCompat((cur.progress(now) * 1000).toInt(), false)
+        b.tvOsdNext.isVisible = next != null
+        b.tvOsdNext.text = next?.let { "${getString(R.string.epg_next)} ${Fmt.time(it.start)} · ${it.title}" }
     }
 
     private fun startMedia(ch: Channel) {
@@ -294,6 +389,15 @@ class PlayerActivity : AppCompatActivity() {
                 b.tvStatus.isVisible = false
                 hideError()
                 updateLiveUi()
+            }
+            if (state == Player.STATE_ENDED && isVod) {
+                saveProgress()
+                val ch = channels.getOrNull(index)
+                if (ch?.kind == ContentKind.SERIES && index < channels.lastIndex) {
+                    b.tvStatus.setText(R.string.next_episode_in)
+                    b.tvStatus.isVisible = true
+                    handler.postDelayed(nextEpisode, 4_000)
+                }
             }
         }
 
@@ -462,13 +566,13 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun showOsd(ch: Channel) {
-        b.tvOsdTitle.text = "${index + 1}  ${ch.name}"
+        b.tvOsdTitle.text = if (ch.kind == ContentKind.LIVE) "${index + 1}  ${ch.name}" else ch.name
         b.tvOsdInfo.text = ch.group
         if (ch.logo.isNullOrBlank()) b.ivOsdLogo.setImageResource(R.drawable.ic_channel_placeholder)
         else b.ivOsdLogo.load(ch.logo) { error(R.drawable.ic_channel_placeholder) }
         b.osd.isVisible = true
         handler.removeCallbacks(hideOsd)
-        handler.postDelayed(hideOsd, 4_000)
+        handler.postDelayed(hideOsd, if (b.osdEpg.isVisible) 6_000 else 4_000)
     }
 
     private fun cycleResize() {
@@ -568,8 +672,8 @@ class PlayerActivity : AppCompatActivity() {
             val delta = when (code) {
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_MEDIA_NEXT -> +1
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> -1
-                KeyEvent.KEYCODE_DPAD_UP -> if (controllerHidden) +1 else 0
-                KeyEvent.KEYCODE_DPAD_DOWN -> if (controllerHidden) -1 else 0
+                KeyEvent.KEYCODE_DPAD_UP -> if (controllerHidden && !isVod) +1 else 0
+                KeyEvent.KEYCODE_DPAD_DOWN -> if (controllerHidden && !isVod) -1 else 0
                 else -> 0
             }
             if (delta != 0) {
@@ -657,6 +761,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     /** Não repete requisições que falharam com 4xx (canal inexistente/bloqueado). */
+    @OptIn(UnstableApi::class)
     private class IptvLoadErrorPolicy : DefaultLoadErrorHandlingPolicy(3) {
         override fun getRetryDelayMsFor(info: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
             val e = info.exception

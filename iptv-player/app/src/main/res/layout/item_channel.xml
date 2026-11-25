@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp"
@@ -52,6 +53,46 @@
             android:maxLines="1"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
+
+        <LinearLayout
+            android:id="@+id/epgBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvNow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/epgProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:max="1000"
+                app:indicatorColor="@color/live_red"
+                app:trackColor="#33FFFFFF"
+                app:trackCornerRadius="2dp"
+                app:indicatorTrackGapSize="0dp"
+                app:trackStopIndicatorSize="0dp"
+                app:trackThickness="3dp" />
+
+            <TextView
+                android:id="@+id/tvNext"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
 
     <TextView
@@ -74,6 +115,5 @@
         android:importantForAccessibility="no"
         android:src="@drawable/ic_star"
         android:visibility="gone"
-        app:tint="@color/star"
-        xmlns:app="http://schemas.android.com/apk/res-auto" />
+        app:tint="@color/star" />
 </LinearLayout>

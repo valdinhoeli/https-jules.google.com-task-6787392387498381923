@@ -2,7 +2,9 @@ package com.iptv.player4k.data
 
 import com.iptv.player4k.util.Text
 
-/** Um canal/stream de uma lista M3U. */
+enum class ContentKind { LIVE, MOVIE, SERIES }
+
+/** Um item reproduzível: canal ao vivo, filme ou episódio. */
 class Channel(
     val name: String,
     val url: String,
@@ -11,6 +13,10 @@ class Channel(
     val tvgId: String? = null,
     /** Cabeçalhos HTTP específicos do canal (User-Agent, Referer, Origin…). */
     val headers: Map<String, String> = emptyMap(),
+    val kind: ContentKind = ContentKind.LIVE,
+    val tvgName: String? = null,
+    /** Para filmes/séries: id do item (progresso e "continuar assistindo"). */
+    val refId: String? = null,
 ) {
     val searchKey: String = Text.normalize(name)
     val qualityTag: QualityTag? = QualityTag.fromName(name)

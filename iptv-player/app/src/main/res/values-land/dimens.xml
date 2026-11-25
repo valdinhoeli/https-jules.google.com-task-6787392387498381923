@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="poster_w">128dp</dimen>
+    <dimen name="poster_h">192dp</dimen>
+    <dimen name="hero_poster_w">120dp</dimen>
+    <dimen name="hero_poster_h">180dp</dimen>
+    <dimen name="details_backdrop_h">190dp</dimen>
+    <dimen name="epg_header_h">118dp</dimen>
+</resources>

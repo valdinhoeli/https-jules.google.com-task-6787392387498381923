@@ -11,20 +11,36 @@ import java.net.URLDecoder
  * #EXTGRP, #EXTVLCOPT (http-user-agent / http-referrer / http-origin),
  * #EXTHTTP (JSON de cabeçalhos) e cabeçalhos no estilo Kodi após "|" na URL.
  */
+class M3uResult(val channels: List<Channel>, val tvgUrls: List<String>)
+
 object M3uParser {
     private val attrRegex = Regex("""([A-Za-z0-9_\-]+)\s*=\s*"([^"]*)"""")
+    private val episodeRegex = Regex("""(?i)(^|[^A-Z0-9])[ST]\d{1,2}\s*[._-]?\s*EP?\d{1,3}([^0-9]|$)""")
+    private val liveWords = listOf("canais", "canal", "24h", "24 h", "24 horas", "ao vivo", " live ")
+    private val seriesWords = listOf("serie", "series", "temporada", "season")
+    private val movieWords = listOf("filme", "movie", "vod", "cinema", "lancamento")
+    private val vodExt = listOf(".mp4", ".mkv", ".avi", ".mov", ".wmv", ".m4v")
 
-    fun parse(reader: BufferedReader, defaultGroup: String = "Sem grupo"): List<Channel> {
+    fun parse(reader: BufferedReader, defaultGroup: String = "Sem grupo"): M3uResult {
         val out = ArrayList<Channel>(2048)
+        val tvgUrls = LinkedHashSet<String>()
         var title: String? = null
         var attrs: Map<String, String> = emptyMap()
         var extGroup: String? = null
         val headers = LinkedHashMap<String, String>()
 
         reader.lineSequence().forEach { raw ->
-            val line = raw.trim().removePrefix("﻿")
+            val line = raw.trim().removePrefix("\uFEFF")
             when {
                 line.isEmpty() -> Unit
+                line.startsWith("#EXTM3U", ignoreCase = true) -> {
+                    attrRegex.findAll(line).forEach { m ->
+                        if (m.groupValues[1].lowercase() in setOf("url-tvg", "x-tvg-url", "tvg-url")) {
+                            m.groupValues[2].split(',').map { it.trim() }
+                                .filter { it.startsWith("http", true) }.forEach { tvgUrls += it }
+                        }
+                    }
+                }
                 line.startsWith("#EXTINF", ignoreCase = true) -> {
                     val (t, a) = parseExtInf(line)
                     title = t
@@ -65,6 +81,8 @@ object M3uParser {
                             group = group,
                             tvgId = attrs["tvg-id"]?.takeIf { it.isNotBlank() },
                             headers = if (headers.isEmpty()) emptyMap() else HashMap(headers),
+                            kind = classify(url, group, name),
+                            tvgName = attrs["tvg-name"]?.takeIf { it.isNotBlank() },
                         )
                     }
                     title = null
@@ -74,7 +92,26 @@ object M3uParser {
                 }
             }
         }
-        return out
+        return M3uResult(out, tvgUrls.toList())
+    }
+
+    /**
+     * Ao vivo, filme ou série. Usa o padrão de URL do Xtream (/movie/, /series/, /live/),
+     * o nome (S01E02) e palavras do grupo ("Filmes", "Séries"…).
+     */
+    fun classify(url: String, group: String, name: String): ContentKind {
+        val u = url.lowercase()
+        if ("/series/" in u) return ContentKind.SERIES
+        if ("/movie/" in u || "/movies/" in u) return ContentKind.MOVIE
+        if ("/live/" in u) return ContentKind.LIVE
+        if (episodeRegex.containsMatchIn(name)) return ContentKind.SERIES
+        val g = " " + com.iptv.player4k.util.Text.normalize(group) + " "
+        if (liveWords.any { it in g }) return ContentKind.LIVE
+        if (seriesWords.any { it in g }) return ContentKind.SERIES
+        if (movieWords.any { it in g }) return ContentKind.MOVIE
+        val path = u.substringBefore('?').substringBefore('|')
+        if (vodExt.any { path.endsWith(it) }) return ContentKind.MOVIE
+        return ContentKind.LIVE
     }
 
     /** Separa os atributos e o título do #EXTINF, respeitando vírgulas entre aspas. */

@@ -5,13 +5,19 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 > O app não contém canais. Use apenas listas às quais você tem direito.
 
-| Lista (TV / paisagem) | Player 4K | Seletor de qualidade |
+| Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
-| ![](docs/lista-tv.png) | ![](docs/player-4k.png) | ![](docs/qualidade.png) |
+| ![](docs/filmes-destaque.png) | ![](docs/guia-tv.png) | ![](docs/ao-vivo-epg.png) |
+| **Fileiras por categoria** | **Série: temporadas e episódios** | **Player com guia** |
+| ![](docs/filmes-fileiras.png) | ![](docs/serie-episodios.png) | ![](docs/player-epg.png) |
+
+| Celular: Filmes | Celular: Guia | Player 4K |
+|---|---|---|
+| ![](docs/filmes-celular.png) | ![](docs/guia-celular.png) | ![](docs/player-4k.png) |
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.0.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.1.0.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -27,6 +33,25 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**Filmes e Séries (estilo streaming)**
+- Abas separadas: Ao vivo · Filmes · Séries · Guia
+- Destaque grande no topo (troca sozinho), com nota, ano, gênero e botões Assistir / Mais informações
+- Fileiras horizontais: Continuar assistindo, Minha lista, Adicionados recentemente,
+  Mais bem avaliados e uma fileira por categoria; pôsteres com zoom no foco (controle remoto)
+- Tela de detalhes com fundo, sinopse, elenco, direção, duração e "Minha lista"
+- Séries com temporadas e episódios (miniatura, duração, progresso)
+- Retoma de onde parou ("Continuar de 12:34") e passa sozinho para o próximo episódio
+- Listas Xtream: catálogo completo via API (`player_api.php`); listas M3U: separa pelo link
+  (`/movie/`, `/series/`), pelo grupo ("Filmes", "Séries") e pelo nome (`S01E02`)
+
+**Guia de programação (EPG / XMLTV)**
+- Grade de programação com linha vermelha "AGORA", selo AO VIVO e barra de progresso
+- Cabeçalho com o programa selecionado: horário, "Restam X min" / "Começa em…", sinopse
+- Na lista de canais: "● programa atual" + barra de progresso + "A seguir"
+- No player: linha do guia no topo e no aviso de troca de canal
+- Fonte do guia: `url-tvg` da lista M3U, `xmltv.php` do Xtream ou URL própria (aceita `.xml.gz`);
+  canais casados por `tvg-id` ou pelo nome; atualização automática a cada 12 h
 
 **Navegação**
 - Grupos/categorias com contagem, Todos, ★ Favoritos e Recentes
@@ -85,9 +110,12 @@ app/src/main/java/com/iptv/player4k/
 │   ├── M3uParser.kt          # parser M3U/M3U8 estendido
 │   ├── Playlist.kt           # modelo de lista (URL, Xtream, arquivo)
 │   ├── PlaylistRepository.kt # download + cache local
-│   ├── PlaylistStore.kt      # listas, favoritos, recentes, ajustes
+│   ├── PlaylistStore.kt      # listas, favoritos, recentes, progresso, minha lista
+│   ├── XtreamApi.kt          # API Xtream Codes (filmes, séries, detalhes)
+│   ├── LibraryRepository.kt  # catálogo de filmes/séries com cache
 │   └── Channel.kt            # canal + selo de qualidade
-├── ui/                       # tela de listas/grupos/canais
+├── epg/                      # parser XMLTV, cache e dados do guia
+├── ui/                       # abas, ao vivo, filmes/séries, detalhes, guia (EpgGridView)
 ├── player/PlayerActivity.kt  # ExoPlayer, qualidade, PiP, controle remoto
 └── util/                     # rótulos de vídeo, diagnóstico 4K
 ```

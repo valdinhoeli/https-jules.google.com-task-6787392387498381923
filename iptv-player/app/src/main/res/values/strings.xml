@@ -98,4 +98,62 @@
     <string name="err_play_decoder">O aparelho não consegue decodificar este vídeo (codec/resolução não suportados).</string>
     <string name="err_play_drm">Canal protegido por DRM não suportado.</string>
     <string name="err_play_generic">Não foi possível reproduzir o canal.</string>
+
+    <!-- Abas -->
+    <string name="tab_live">Ao vivo</string>
+    <string name="tab_movies">Filmes</string>
+    <string name="tab_series">Séries</string>
+    <string name="tab_guide">Guia</string>
+
+    <!-- Filmes / séries -->
+    <string name="row_continue">Continuar assistindo</string>
+    <string name="row_mylist">Minha lista</string>
+    <string name="row_recent">Adicionados recentemente</string>
+    <string name="row_top">Mais bem avaliados</string>
+    <string name="hero_new">NOVIDADE</string>
+    <string name="hero_featured">EM DESTAQUE</string>
+    <string name="watch">Assistir</string>
+    <string name="more_info">Mais informações</string>
+    <string name="mylist_add">Minha lista</string>
+    <string name="mylist_added">Na minha lista</string>
+    <string name="added_mylist">Adicionado à Minha lista</string>
+    <string name="removed_mylist">Removido da Minha lista</string>
+    <string name="resume_from">Continuar de %s</string>
+    <string name="resume_episode">Continuar T%1$d:E%2$d</string>
+    <string name="kind_movie">FILME</string>
+    <string name="kind_series">SÉRIE</string>
+    <string name="episodes">Episódios</string>
+    <string name="season_n">Temporada %d</string>
+    <string name="cast_label">Elenco: %s</string>
+    <string name="director_label">Direção: %s</string>
+    <string name="minutes">%d min</string>
+    <string name="no_movies">Nenhum filme nesta lista</string>
+    <string name="no_series">Nenhuma série nesta lista</string>
+    <string name="no_vod_hint">Listas Xtream Codes carregam filmes e séries automaticamente. Em listas M3U, os itens são separados pelos grupos (\"Filmes\", \"Séries\") e pelo nome (S01E02).</string>
+    <string name="loading_library">Carregando catálogo…</string>
+    <string name="search_results">Resultados da busca</string>
+    <string name="no_results">Nada encontrado</string>
+    <string name="no_episodes">Episódios indisponíveis</string>
+    <string name="resuming_at">Continuando de %s</string>
+    <string name="next_episode_in">Próximo episódio…</string>
+    <string name="ep_label">T%1$d:E%2$d · %3$s</string>
+
+    <!-- EPG -->
+    <string name="epg_now">AGORA</string>
+    <string name="epg_live">AO VIVO</string>
+    <string name="epg_next">A seguir</string>
+    <string name="epg_later">MAIS TARDE</string>
+    <string name="epg_ended">JÁ EXIBIDO</string>
+    <string name="epg_loading">Carregando guia de programação…</string>
+    <string name="epg_no_source">Esta lista não informa um guia (EPG). Edite a lista e preencha \"URL do guia (EPG)\".</string>
+    <string name="epg_error">Guia indisponível: %s</string>
+    <string name="epg_no_info">Sem programação</string>
+    <string name="epg_go_now">Agora</string>
+    <string name="epg_watch_channel">Assistir canal</string>
+    <string name="epg_channels">Guia com %1$d canais · atualizado %2$s</string>
+    <string name="epg_starts_in">Começa em %s</string>
+    <string name="epg_remaining">Restam %d min</string>
+    <string name="field_epg">URL do guia (EPG) — opcional</string>
+    <string name="epg_helper">XMLTV (.xml ou .xml.gz). Vazio: usa o guia da lista/Xtream</string>
+    <string name="today">Hoje</string>
 </resources>

@@ -5,9 +5,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.iptv.player4k.R
 import com.iptv.player4k.data.Channel
+import com.iptv.player4k.data.ContentKind
+import com.iptv.player4k.data.Library
+import com.iptv.player4k.data.LibraryRepository
 import com.iptv.player4k.data.Playlist
 import com.iptv.player4k.data.PlaylistRepository
 import com.iptv.player4k.data.PlaylistStore
+import com.iptv.player4k.data.Session
+import com.iptv.player4k.epg.EpgData
+import com.iptv.player4k.epg.EpgRepository
 import com.iptv.player4k.util.Text
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,23 +38,57 @@ data class UiState(
     val channels: List<Channel> = emptyList(),
     val favorites: Set<String> = emptySet(),
     val query: String = "",
+    /** canais ao vivo */
     val totalCount: Int = 0,
+    /** itens de todos os tipos na lista M3U */
+    val allCount: Int = 0,
+)
+
+data class LibraryState(
+    val loading: Boolean = false,
+    val library: Library = Library.EMPTY,
+    val error: String? = null,
+)
+
+data class EpgState(
+    val loading: Boolean = false,
+    val data: EpgData? = null,
+    val error: String? = null,
+    /** a lista não informa nenhuma fonte de guia */
+    val noSource: Boolean = false,
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     val store = PlaylistStore(app)
     private val repo = PlaylistRepository(app)
+    val libraryRepo = LibraryRepository(app)
+    private val epgRepo = EpgRepository(app)
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
 
+    private val _library = MutableStateFlow(LibraryState())
+    val library: StateFlow<LibraryState> = _library
+
+    private val _epg = MutableStateFlow(EpgState())
+    val epg: StateFlow<EpgState> = _epg
+
+    /** Incrementa quando progresso/"minha lista" mudam (outras telas recalculam). */
+    private val _contentVersion = MutableStateFlow(0)
+    val contentVersion: StateFlow<Int> = _contentVersion
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages: SharedFlow<String> = _messages
 
+    var currentTab = 0
+
     private var all: List<Channel> = emptyList()
+    private var live: List<Channel> = emptyList()
     private var byUrl: Map<String, Channel> = emptyMap()
     private var loadJob: Job? = null
     private var filterJob: Job? = null
+    private var libJob: Job? = null
+    private var epgJob: Job? = null
     private var started = false
     private var loadedId: String? = null
 
@@ -74,41 +114,90 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         store.save(p)
         store.selectedId = p.id
         _state.update { it.copy(selectedGroup = GROUP_ALL, query = "") }
+        loadedId = null
         load(p, forceRefresh = true)
     }
 
     fun deletePlaylist(p: Playlist) {
         store.delete(p.id)
         repo.deleteCache(p)
+        libraryRepo.deleteCache(p)
+        epgRepo.deleteCache(p)
         val next = store.selected()
-        all = emptyList(); byUrl = emptyMap(); loadedId = null
+        clearData()
         _state.value = UiState(playlist = next, hasPlaylists = next != null)
         if (next != null) load(next, forceRefresh = false)
+    }
+
+    private fun clearData() {
+        all = emptyList(); live = emptyList(); byUrl = emptyMap(); loadedId = null
+        libJob?.cancel(); epgJob?.cancel()
+        _library.value = LibraryState()
+        _epg.value = EpgState()
+        Session.library = Library.EMPTY
+        Session.epg = null
     }
 
     private fun load(p: Playlist, forceRefresh: Boolean) {
         loadJob?.cancel()
         if (p.id != loadedId) {
-            // outra lista: não mostrar canais da lista anterior
-            all = emptyList(); byUrl = emptyMap(); loadedId = null
-            _state.update { it.copy(groups = emptyList(), channels = emptyList(), totalCount = 0) }
+            clearData()
+            _state.update { it.copy(groups = emptyList(), channels = emptyList(), totalCount = 0, allCount = 0) }
         }
+        Session.playlist = p
         _state.update { it.copy(playlist = p, hasPlaylists = true, loading = true, error = null) }
         loadJob = viewModelScope.launch {
             try {
-                val list = repo.load(p, forceRefresh)
-                if (forceRefresh) store.save(p.copy(updatedAt = System.currentTimeMillis()))
-                all = list
-                byUrl = list.associateBy { it.url }
+                val result = repo.load(p, forceRefresh)
+                val saved = if (forceRefresh) p.copy(updatedAt = System.currentTimeMillis()).also { store.save(it) } else p
+                all = result.channels
+                live = all.filter { it.kind == ContentKind.LIVE }
+                byUrl = live.associateBy { it.url }
                 loadedId = p.id
-                _state.update { it.copy(loading = false, error = null, totalCount = list.size) }
+                _state.update { it.copy(loading = false, error = null, totalCount = live.size, allCount = all.size) }
                 rebuild()
+                loadLibrary(saved, forceRefresh)
+                loadEpg(saved, result.tvgUrls, forceRefresh)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val msg = e.message ?: e.javaClass.simpleName
                 _state.update { it.copy(loading = false, error = msg) }
                 _messages.tryEmit(getApplication<Application>().getString(R.string.err_load, msg))
+            }
+        }
+    }
+
+    private fun loadLibrary(p: Playlist, force: Boolean) {
+        libJob?.cancel()
+        _library.update { it.copy(loading = true, error = null) }
+        val channels = all
+        libJob = viewModelScope.launch {
+            try {
+                val lib = libraryRepo.load(p, channels, force)
+                Session.library = lib
+                _library.value = LibraryState(loading = false, library = lib)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _library.update { it.copy(loading = false, error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    private fun loadEpg(p: Playlist, tvgUrls: List<String>, force: Boolean) {
+        epgJob?.cancel()
+        _epg.update { it.copy(loading = true, error = null, noSource = false) }
+        val channels = live
+        epgJob = viewModelScope.launch {
+            try {
+                val data = epgRepo.load(p, tvgUrls, channels, force)
+                Session.epg = data
+                _epg.value = EpgState(loading = false, data = data, noSource = data == null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _epg.update { it.copy(loading = false, error = e.message ?: e.javaClass.simpleName) }
             }
         }
     }
@@ -132,6 +221,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return added
     }
 
+    fun toggleMyList(key: String): Boolean {
+        val p = state.value.playlist ?: return false
+        val added = store.toggleMyList(p.id, key)
+        contentChanged()
+        return added
+    }
+
+    fun contentChanged() {
+        _contentVersion.value++
+    }
+
     fun addRecent(ch: Channel) {
         state.value.playlist?.let { store.addRecent(it.id, ch.url) }
     }
@@ -143,10 +243,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val favs = store.favorites(p.id)
         val recents = store.recents(p.id).count { it in byUrl }
         val counts = LinkedHashMap<String, Int>()
-        all.forEach { counts[it.group] = (counts[it.group] ?: 0) + 1 }
+        live.forEach { counts[it.group] = (counts[it.group] ?: 0) + 1 }
         val groups = ArrayList<GroupItem>(counts.size + 3)
-        groups += GroupItem(GROUP_ALL, ctx.getString(R.string.group_all), all.size)
-        groups += GroupItem(GROUP_FAV, ctx.getString(R.string.group_favorites), all.count { it.url in favs })
+        groups += GroupItem(GROUP_ALL, ctx.getString(R.string.group_all), live.size)
+        groups += GroupItem(GROUP_FAV, ctx.getString(R.string.group_favorites), live.count { it.url in favs })
         groups += GroupItem(GROUP_RECENT, ctx.getString(R.string.group_recents), recents)
         counts.forEach { (g, c) -> groups += GroupItem(g, g, c) }
         val sel = state.value.selectedGroup.takeIf { s -> groups.any { it.key == s } } ?: GROUP_ALL
@@ -161,10 +261,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         filterJob = viewModelScope.launch {
             val result = withContext(Dispatchers.Default) {
                 val base: List<Channel> = when (s.selectedGroup) {
-                    GROUP_ALL -> all
-                    GROUP_FAV -> all.filter { it.url in s.favorites }
+                    GROUP_ALL -> live
+                    GROUP_FAV -> live.filter { it.url in s.favorites }
                     GROUP_RECENT -> store.recents(p.id).mapNotNull { byUrl[it] }
-                    else -> all.filter { it.group == s.selectedGroup }
+                    else -> live.filter { it.group == s.selectedGroup }
                 }
                 val q = Text.normalize(s.query.trim())
                 if (q.isEmpty()) base else base.filter { it.searchKey.contains(q) }

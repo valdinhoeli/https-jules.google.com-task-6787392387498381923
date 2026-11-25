@@ -20,18 +20,19 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.fragment.app.Fragment
+import com.google.android.material.tabs.TabLayout
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.iptv.player4k.BuildConfig
 import com.iptv.player4k.R
+import com.iptv.player4k.data.ContentKind
 import com.iptv.player4k.data.Playlist
 import com.iptv.player4k.data.PlaylistType
-import com.iptv.player4k.data.PlaybackQueue
 import com.iptv.player4k.databinding.ActivityMainBinding
 import com.iptv.player4k.databinding.DialogPlaylistBinding
-import com.iptv.player4k.player.PlayerActivity
+import com.iptv.player4k.ui.epg.EpgFragment
+import com.iptv.player4k.ui.vod.VodFragment
 import com.iptv.player4k.util.DeviceInfo
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -40,11 +41,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var b: ActivityMainBinding
     private val vm: MainViewModel by viewModels()
-    private lateinit var groupAdapter: GroupAdapter
-    private lateinit var channelAdapter: ChannelAdapter
     private var searchItem: MenuItem? = null
-    private var lastGroup: String? = null
-    private var lastQuery: String? = null
 
     // Estado do diálogo de lista (seleção de arquivo)
     private var dialogBinding: DialogPlaylistBinding? = null
@@ -76,28 +73,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setSupportActionBar(b.toolbar)
-
-        val wide = resources.getBoolean(R.bool.wide_layout)
-        groupAdapter = GroupAdapter(vertical = wide) { vm.selectGroup(it) }
-        b.rvGroups.layoutManager = LinearLayoutManager(
-            this, if (wide) LinearLayoutManager.VERTICAL else LinearLayoutManager.HORIZONTAL, false
-        )
-        b.rvGroups.adapter = groupAdapter
-        b.rvGroups.itemAnimator = null
-
-        channelAdapter = ChannelAdapter(
-            onClick = ::play,
-            onLongClick = { ch ->
-                val added = vm.toggleFavorite(ch)
-                toast(if (added) R.string.fav_added else R.string.fav_removed)
-            },
-        )
-        val widthDp = resources.configuration.screenWidthDp
-        val span = if (wide) ((widthDp - 260) / 380).coerceIn(1, 4) else 1
-        b.rvChannels.layoutManager = GridLayoutManager(this, span)
-        b.rvChannels.adapter = channelAdapter
-        b.rvChannels.setHasFixedSize(true)
-        b.rvChannels.itemAnimator = null
+        setupTabs(savedInstanceState?.getInt(KEY_TAB) ?: vm.currentTab)
 
         b.empty.btnEmptyAction.setOnClickListener {
             if (vm.state.value.playlist == null) showPlaylistDialog(null) else vm.refresh()
@@ -116,22 +92,58 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Recentes/favoritos podem ter mudado no player
+        // Recentes/favoritos/progresso podem ter mudado no player
         vm.rebuild()
+        vm.contentChanged()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_TAB, vm.currentTab)
+    }
+
+    // ---------------- Abas ----------------
+
+    private fun setupTabs(initial: Int) {
+        val tabs = listOf(
+            R.string.tab_live to R.drawable.ic_tv,
+            R.string.tab_movies to R.drawable.ic_movie,
+            R.string.tab_series to R.drawable.ic_series,
+            R.string.tab_guide to R.drawable.ic_guide,
+        )
+        tabs.forEach { (t, i) -> b.tabs.addTab(b.tabs.newTab().setText(t).setIcon(i), false) }
+        b.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) = showTab(tab.position)
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
+        b.tabs.getTabAt(initial.coerceIn(0, 3))?.select()
+    }
+
+    private fun showTab(pos: Int) {
+        vm.currentTab = pos
+        // no Guia em paisagem/TV, recolhe o título para a grade ganhar espaço
+        b.appBar.setExpanded(!(pos == 3 && resources.getBoolean(R.bool.wide_layout)), true)
+        val fm = supportFragmentManager
+        val tag = "tab$pos"
+        val tx = fm.beginTransaction().setReorderingAllowed(true)
+        fm.fragments.filter { it.tag?.startsWith("tab") == true && it.tag != tag }.forEach { tx.hide(it) }
+        val existing = fm.findFragmentByTag(tag)
+        if (existing != null) tx.show(existing) else tx.add(R.id.container, createTab(pos), tag)
+        tx.commitAllowingStateLoss()
+    }
+
+    private fun createTab(pos: Int): Fragment = when (pos) {
+        1 -> VodFragment.newInstance(ContentKind.MOVIE)
+        2 -> VodFragment.newInstance(ContentKind.SERIES)
+        3 -> EpgFragment()
+        else -> LiveFragment()
     }
 
     private fun render(s: UiState) {
         supportActionBar?.subtitle = s.playlist?.name
         b.progress.isVisible = s.loading
-        groupAdapter.submit(s.groups, s.selectedGroup)
-        channelAdapter.submit(s.channels, s.favorites)
-        b.tvCount.text = resources.getQuantityString(R.plurals.channel_count, s.channels.size, s.channels.size)
-
-        if (lastGroup != s.selectedGroup || lastQuery != s.query) {
-            lastGroup = s.selectedGroup
-            lastQuery = s.query
-            b.rvChannels.scrollToPosition(0)
-        }
+        b.tabs.isVisible = s.playlist != null
 
         val e = b.empty
         when {
@@ -141,39 +153,28 @@ class MainActivity : AppCompatActivity() {
                 e.tvEmptyText.setText(R.string.empty_text)
                 e.btnEmptyAction.isVisible = true
                 e.btnEmptyAction.setText(R.string.action_add)
-                b.content.isVisible = false
+                b.container.isVisible = false
             }
-            s.loading && s.totalCount == 0 -> {
+            s.loading && s.allCount == 0 -> {
                 e.emptyView.isVisible = true
                 e.tvEmptyTitle.setText(R.string.loading_playlist)
                 e.tvEmptyText.text = s.playlist.name
                 e.btnEmptyAction.isVisible = false
-                b.content.isVisible = false
+                b.container.isVisible = false
             }
-            s.error != null && s.totalCount == 0 -> {
+            s.error != null && s.allCount == 0 -> {
                 e.emptyView.isVisible = true
                 e.tvEmptyTitle.setText(R.string.empty_no_channels)
                 e.tvEmptyText.text = s.error
                 e.btnEmptyAction.isVisible = true
                 e.btnEmptyAction.setText(R.string.retry)
-                b.content.isVisible = false
+                b.container.isVisible = false
             }
             else -> {
                 e.emptyView.isVisible = false
-                b.content.isVisible = true
+                b.container.isVisible = true
             }
         }
-    }
-
-    private fun play(position: Int) {
-        val s = vm.state.value
-        val list = channelAdapter.items
-        if (position !in list.indices) return
-        PlaybackQueue.set(s.playlist, list)
-        vm.addRecent(list[position])
-        startActivity(
-            Intent(this, PlayerActivity::class.java).putExtra(PlayerActivity.EXTRA_INDEX, position)
-        )
     }
 
     // ---------------- Menu ----------------
@@ -302,6 +303,7 @@ class MainActivity : AppCompatActivity() {
         if (existing != null) {
             db.etName.setText(existing.name)
             db.etUa.setText(existing.userAgent)
+            db.etEpg.setText(existing.epgUrl)
             when (existing.type) {
                 PlaylistType.URL -> { db.toggleType.check(R.id.btnTypeUrl); db.etUrl.setText(existing.url) }
                 PlaylistType.XTREAM -> {
@@ -351,6 +353,7 @@ class MainActivity : AppCompatActivity() {
         listOf(db.tilName, db.tilUrl, db.tilServer, db.tilUser, db.tilPass).forEach { it.error = null }
         var name = db.etName.text?.toString()?.trim().orEmpty()
         val ua = db.etUa.text?.toString()?.trim().orEmpty()
+        val epgUrl = db.etEpg.text?.toString()?.trim().orEmpty()
         val id = existing?.id ?: UUID.randomUUID().toString()
 
         val p = when (type) {
@@ -383,7 +386,7 @@ class MainActivity : AppCompatActivity() {
                 Playlist(id, name, type, sourceUri = uri.toString(), userAgent = ua)
             }
         }
-        return p.copy(updatedAt = existing?.updatedAt ?: 0L)
+        return p.copy(updatedAt = existing?.updatedAt ?: 0L, epgUrl = epgUrl)
     }
 
     private fun displayName(uri: Uri): String {
@@ -396,4 +399,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toast(res: Int) = Toast.makeText(this, res, Toast.LENGTH_SHORT).show()
+
+    companion object {
+        private const val KEY_TAB = "tab"
+    }
 }

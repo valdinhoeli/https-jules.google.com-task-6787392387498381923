@@ -19,6 +19,8 @@ data class Playlist(
     val sourceUri: String = "",
     val userAgent: String = "",
     val updatedAt: Long = 0L,
+    /** URL(s) XMLTV do guia, separadas por vírgula (opcional). */
+    val epgUrl: String = "",
 ) {
     /** URL efetiva da lista M3U. */
     fun resolvedUrl(): String = when (type) {
@@ -35,7 +37,7 @@ data class Playlist(
         .put("id", id).put("name", name).put("type", type.name)
         .put("url", url).put("server", server).put("username", username)
         .put("password", password).put("output", output).put("sourceUri", sourceUri)
-        .put("userAgent", userAgent).put("updatedAt", updatedAt)
+        .put("userAgent", userAgent).put("updatedAt", updatedAt).put("epgUrl", epgUrl)
 
     companion object {
         fun fromJson(o: JSONObject) = Playlist(
@@ -50,6 +52,7 @@ data class Playlist(
             sourceUri = o.optString("sourceUri"),
             userAgent = o.optString("userAgent"),
             updatedAt = o.optLong("updatedAt"),
+            epgUrl = o.optString("epgUrl"),
         )
 
         fun normalizeServer(s: String): String {
