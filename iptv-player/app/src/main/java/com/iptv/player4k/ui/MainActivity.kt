@@ -86,6 +86,8 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (searchItem?.isActionViewExpanded == true) { searchItem?.collapseActionView(); return }
+                // dentro de uma seção: volta para a tela inicial
+                if (vm.section != SECTION_HOME) { showSection(SECTION_HOME); return }
                 MaterialAlertDialogBuilder(this@MainActivity)
                     .setTitle(R.string.exit_title)
                     .setPositiveButton(R.string.exit_yes) { _, _ -> finish() }
@@ -100,6 +102,8 @@ class MainActivity : AppCompatActivity() {
             setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
         }
         setupTabs(savedInstanceState?.getInt(KEY_TAB) ?: vm.currentTab)
+        setupHome()
+        showSection(savedInstanceState?.getInt(KEY_SECTION) ?: vm.section)
 
         b.empty.btnEmptyAction.setOnClickListener {
             if (vm.state.value.playlist == null) showPlaylistDialog(null) else vm.refresh()
@@ -108,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { vm.state.collect(::render) }
+                launch { kotlinx.coroutines.flow.combine(vm.state, vm.library, vm.contentVersion) { s, l, _ -> s to l }.collect { (s, l) -> renderHome(s, l) } }
                 launch {
                     vm.messages.collect { msg -> Snackbar.make(b.root, msg, Snackbar.LENGTH_LONG).show() }
                 }
@@ -127,6 +132,7 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt(KEY_TAB, vm.currentTab)
+        outState.putInt(KEY_SECTION, vm.section)
     }
 
     // ---------------- Abas ----------------
@@ -139,6 +145,11 @@ class MainActivity : AppCompatActivity() {
             R.string.tab_guide to R.drawable.ic_guide,
         )
         tabs.forEach { (t, i) -> b.tabs.addTab(b.tabs.newTab().setText(t).setIcon(i), false) }
+        // A barra superior (AppBarLayout) bloqueia o foco das setas em aparelhos com tela de
+        // toque — várias TV Box declaram ter uma. Libera para o controle remoto chegar nas abas.
+        b.appBar.touchscreenBlocksFocus = false
+        if (android.os.Build.VERSION.SDK_INT >= 26) b.appBar.isKeyboardNavigationCluster = false
+        b.tabs.isFocusable = false
         // controle remoto: a aba abre ao receber o foco (sem precisar apertar OK)
         for (i in 0 until b.tabs.tabCount) {
             val tab = b.tabs.getTabAt(i) ?: continue
@@ -155,6 +166,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showTab(pos: Int) {
         vm.currentTab = pos
+        if (vm.section == SECTION_LIVE) b.tabs.post { hideVodTabs() }
         // no Guia em paisagem/TV, esconde o título para a grade ganhar espaço
         b.toolbar.isVisible = !(pos == 3 && resources.getBoolean(R.bool.wide_layout))
         val fm = supportFragmentManager
@@ -164,6 +176,122 @@ class MainActivity : AppCompatActivity() {
         val existing = fm.findFragmentByTag(tag)
         if (existing != null) tx.show(existing) else tx.add(R.id.container, createTab(pos), tag)
         tx.commitAllowingStateLoss()
+    }
+
+    /** ▲ no topo de qualquer lista leva para a aba selecionada (controle remoto). */
+    // ---------------- Tela inicial: TV AO VIVO / FILMES / SÉRIES ----------------
+
+    private val clockFmt = java.text.SimpleDateFormat("EEE, d 'de' MMM  ·  HH:mm", java.util.Locale("pt", "BR"))
+    private val clockDay = java.text.SimpleDateFormat("EEE, d 'de' MMM", java.util.Locale("pt", "BR"))
+    private val clockTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
+    private val clockTick = object : Runnable {
+        override fun run() {
+            val now = java.util.Date()
+            b.home.tvHomeClock.text = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT)
+                clockDay.format(now) + "\n" + clockTime.format(now) else clockFmt.format(now)
+            b.root.postDelayed(this, 30_000)
+        }
+    }
+
+    private fun setupHome() {
+        val h = b.home
+        h.tvHomeBrand.text = android.text.SpannableStringBuilder("IPTV Player  4K").apply {
+            setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
+        }
+        listOf(h.cardLive to SECTION_LIVE, h.cardMovies to SECTION_MOVIES, h.cardSeries to SECTION_SERIES).forEach { (card, sec) ->
+            card.setOnClickListener {
+                if (vm.state.value.playlist == null) showPlaylistDialog(null) else showSection(sec)
+            }
+            card.setOnFocusChangeListener { v, has ->
+                val sc = if (has) 1.06f else 1f
+                v.animate().scaleX(sc).scaleY(sc).translationZ(if (has) 16f else 0f).setDuration(150).start()
+            }
+        }
+        h.btnHomeLists.setOnClickListener { guarded { showPlaylistPicker() } }
+        h.btnHomeRefresh.setOnClickListener { vm.refresh() }
+        h.btnHomeSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        b.root.post(clockTick)
+    }
+
+    private fun renderHome(s: UiState, lib: LibraryState) {
+        val h = b.home
+        h.tvHomeList.text = s.playlist?.name ?: ""
+        if (s.playlist == null) {
+            listOf(h.tvCountLive, h.tvCountMovies, h.tvCountSeries).forEach { it.setText(R.string.home_add_list) }
+            return
+        }
+        h.tvCountLive.text = if (s.loading && s.totalCount == 0) getString(R.string.home_loading)
+        else resources.getQuantityString(R.plurals.channel_count, s.totalCount, s.totalCount)
+        val rules = vm.rules()
+        val movies = lib.library.movies.count { !rules.isBlocked(it.age, it.category) }
+        val series = lib.library.series.count { !rules.isBlocked(it.age, it.category) }
+        val busy = lib.loading && lib.library.isEmpty
+        h.tvCountMovies.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_movies_count, movies, movies)
+        h.tvCountSeries.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_series_count, series, series)
+    }
+
+    /** Na seção Ao vivo só ficam as abas "Ao vivo" e "Guia". */
+    private fun hideVodTabs() {
+        b.tabs.getTabAt(1)?.view?.isVisible = false
+        b.tabs.getTabAt(2)?.view?.isVisible = false
+    }
+
+    /** Mostra a tela inicial ou uma seção (Ao vivo + Guia, Filmes, Séries). */
+    private fun showSection(sec: Int) {
+        val previous = vm.section
+        vm.section = sec
+        val home = sec == SECTION_HOME
+        b.home.homeRoot.isVisible = home
+        b.appBar.isVisible = !home
+        b.contentFrame.isVisible = !home
+        if (home) {
+            val card = when (previous) {
+                SECTION_MOVIES -> b.home.cardMovies
+                SECTION_SERIES -> b.home.cardSeries
+                else -> b.home.cardLive
+            }
+            card.post { card.requestFocus() }
+            return
+        }
+        supportActionBar?.title = getString(
+            when (sec) { SECTION_MOVIES -> R.string.home_movies; SECTION_SERIES -> R.string.home_series; else -> R.string.home_live }
+        )
+        // Ao vivo: abas "Ao vivo" e "Guia"; Filmes/Séries: sem abas
+        val live = sec == SECTION_LIVE
+        b.tabs.isVisible = live
+        val target = when (sec) {
+            SECTION_MOVIES -> 1
+            SECTION_SERIES -> 2
+            else -> if (vm.currentTab == 3) 3 else 0
+        }
+        if (b.tabs.selectedTabPosition != target) b.tabs.getTabAt(target)?.select() else showTab(target)
+        hideVodTabs()
+        b.tabs.post { hideVodTabs() }
+        invalidateOptionsMenu()
+        b.container.post { b.container.requestFocus() }
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && event.keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP) {
+            val focused = currentFocus
+            if (focused != null && b.tabs.isVisible && isInside(focused, b.container)) {
+                val next = focused.focusSearch(android.view.View.FOCUS_UP)
+                if (next == null || !isInside(next, b.container) || next === focused) {
+                    b.tabs.getTabAt(b.tabs.selectedTabPosition)?.view?.requestFocus()
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    private fun isInside(v: android.view.View, parent: android.view.ViewGroup): Boolean {
+        var p: android.view.ViewParent? = v.parent
+        while (p != null) {
+            if (p === parent) return true
+            p = p.parent
+        }
+        return false
     }
 
     private fun createTab(pos: Int): Fragment = when (pos) {
@@ -433,5 +561,10 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val KEY_TAB = "tab"
+        private const val KEY_SECTION = "section"
+        const val SECTION_HOME = 0
+        const val SECTION_LIVE = 1
+        const val SECTION_MOVIES = 2
+        const val SECTION_SERIES = 3
     }
 }

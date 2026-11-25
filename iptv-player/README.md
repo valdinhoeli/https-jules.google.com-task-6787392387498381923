@@ -5,6 +5,10 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 > O app não contém canais. Use apenas listas às quais você tem direito.
 
+| Tela inicial | Trocar de grupo sem sair do canal |
+|---|---|
+| ![](docs/home.png) | ![](docs/player-grupos.png) |
+
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
 | ![](docs/filmes-destaque.png) | ![](docs/guia-tv.png) | ![](docs/ao-vivo-epg.png) |
@@ -21,7 +25,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.2.6.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.3.0.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -37,6 +41,16 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.3.0 — tela inicial e correções para TV**
+- Ao abrir, tela inicial com 3 opções grandes: **TV AO VIVO**, **FILMES** e **SÉRIES**
+  (com quantidade de canais/filmes/séries, data e hora, e atalhos Listas, Atualizar e Ajustes)
+- Voltar dentro de uma seção retorna à tela inicial; na tela inicial pergunta antes de sair
+- Filmes e Séries agora são acessados direto pela tela inicial (no controle remoto a barra
+  de abas não recebia foco em alguns aparelhos)
+- Lista de grupos/canais não corta mais o item selecionado quando passa da tela
+- No canal ao vivo, **Voltar** (ou ◀ na lista) abre a coluna de **Grupos** sem parar o canal
+  atual: escolha o grupo, depois o canal; Voltar nos grupos sai do player
 
 **1.2.6 — player com visual limpo**
 - Sem título, linha técnica (resolução/codec/fps) e selo de qualidade sobre o vídeo;

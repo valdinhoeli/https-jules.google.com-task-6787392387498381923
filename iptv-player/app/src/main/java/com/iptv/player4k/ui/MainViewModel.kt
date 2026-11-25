@@ -85,6 +85,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val messages: SharedFlow<String> = _messages
 
     var currentTab = 0
+    /** seção aberta: 0 = tela inicial (ver MainActivity.SECTION_*) */
+    var section = 0
 
     private var all: List<Channel> = emptyList()
     /** todos os canais ao vivo (sem filtro dos pais) */

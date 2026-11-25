@@ -527,7 +527,7 @@ class PlayerActivity : AppCompatActivity() {
                 if (!permanent && retryCount < MAX_RETRIES) {
                     retryCount++
                     b.tvStatus.text = getString(R.string.reconnecting, retryCount, MAX_RETRIES)
-                    b.tvStatus.isVisible = true
+                    b.tvStatus.isVisible = !(::panel.isInitialized && panel.isShowing)
                     handler.postDelayed(retryRunnable, 1_500L * retryCount)
                     return
                 }

@@ -53,6 +53,7 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout
+        android:id="@+id/contentFrame"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
@@ -66,4 +67,8 @@
             android:id="@+id/empty"
             layout="@layout/view_empty" />
     </FrameLayout>
+
+    <include
+        android:id="@+id/home"
+        layout="@layout/view_home" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

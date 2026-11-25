@@ -244,4 +244,20 @@
     <string name="panel_hint_groups">◀ Grupos</string>
     <string name="exit_title">Sair do IPTV Player?</string>
     <string name="exit_yes">Sair</string>
+    <string name="home_live">TV AO VIVO</string>
+    <string name="home_movies">FILMES</string>
+    <string name="home_series">SÉRIES</string>
+    <string name="home_lists">Listas</string>
+    <string name="home_refresh">Atualizar</string>
+    <string name="home_settings">Ajustes</string>
+    <string name="home_add_list">Adicione uma lista</string>
+    <string name="home_loading">Carregando…</string>
+    <plurals name="home_movies_count">
+        <item quantity="one">%d filme</item>
+        <item quantity="other">%d filmes</item>
+    </plurals>
+    <plurals name="home_series_count">
+        <item quantity="one">%d série</item>
+        <item quantity="other">%d séries</item>
+    </plurals>
 </resources>
