@@ -142,6 +142,15 @@
                         app:icon="@drawable/ic_add" />
                 </LinearLayout>
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnTrailer"
+                    style="@style/GhostButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/trailer"
+                    app:icon="@drawable/ic_movie" />
+
                 <ProgressBar
                     android:id="@+id/pbResume"
                     style="?android:attr/progressBarStyleHorizontal"

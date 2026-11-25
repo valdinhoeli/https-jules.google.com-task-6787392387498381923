@@ -82,6 +82,9 @@ object M3uParser {
                             headers = if (headers.isEmpty()) emptyMap() else HashMap(headers),
                             kind = classify(url, group, name),
                             tvgName = attrs["tvg-name"]?.takeIf { it.isNotBlank() },
+                            trailer = com.iptv.player4k.util.Trailer.youtubeId(
+                                attrs["trailer"] ?: attrs["tvg-trailer"] ?: attrs["youtube-trailer"] ?: attrs["youtube_trailer"]
+                            ),
                             description = (attrs["plot"] ?: attrs["description"] ?: attrs["tvg-description"]
                                 ?: attrs["tvg-plot"] ?: attrs["desc"] ?: attrs["synopsis"] ?: attrs["sinopse"])
                                 ?.trim()?.takeIf { it.length > 3 },

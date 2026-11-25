@@ -17,3 +17,8 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# ponte JavaScript do player de trailer (página do YouTube → app)
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}

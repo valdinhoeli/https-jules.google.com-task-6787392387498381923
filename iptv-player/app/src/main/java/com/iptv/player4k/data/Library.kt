@@ -18,6 +18,7 @@ class VodItem(
     val backdrop: String? = null,
     val age: Int? = null,
     val searchKey: String = Text.normalize(name),
+    val trailer: String? = null,
 )
 
 class Episode(
@@ -48,6 +49,7 @@ class SeriesItem(
     val episodes: List<Episode> = emptyList(),
     val age: Int? = null,
     val searchKey: String = Text.normalize(name),
+    val trailer: String? = null,
 )
 
 /** Detalhes extras (sinopse, elenco…) e episódios carregados sob demanda. */
@@ -63,6 +65,7 @@ class MediaDetails(
     val poster: String? = null,
     val episodes: List<Episode> = emptyList(),
     val age: Int? = null,
+    val trailer: String? = null,
 )
 
 class Library(
@@ -161,6 +164,7 @@ object LibraryBuilder {
                 movies += VodItem(
                     id = "m3u:${ch.url}", name = title, url = ch.url, poster = ch.logo,
                     category = ch.group, year = year, headers = ch.headers, age = ch.age, plot = ch.description,
+                    trailer = ch.trailer,
                 )
                 movieCats += ch.group
             }
@@ -216,6 +220,7 @@ object LibraryBuilder {
                 poster = list.firstNotNullOfOrNull { it.ch.logo },
                 category = first.ch.group, year = year, episodes = episodes, age = first.ch.age,
                 plot = list.firstNotNullOfOrNull { it.ch.description },
+                trailer = list.firstNotNullOfOrNull { it.ch.trailer },
             )
         }
         return Library(movies, movieCats.toList(), series, seriesCats.toList())

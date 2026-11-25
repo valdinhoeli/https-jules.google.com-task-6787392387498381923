@@ -13,7 +13,7 @@ import java.io.File
  * (que é o que demora em listas grandes).
  */
 object Snapshot {
-    private const val VERSION = 3
+    private const val VERSION = 4
 
     private fun dir(ctx: Context) = File(ctx.filesDir, "snapshots").apply { mkdirs() }
     fun channelsFile(ctx: Context, id: String) = File(dir(ctx), "$id.chn")
@@ -105,6 +105,7 @@ object Snapshot {
                 o.str(c.name); o.str(c.url); o.shared(c.logo); o.shared(c.group); o.str(c.tvgId)
                 o.map(c.headers); o.int(c.kind.ordinal); o.str(c.tvgName); o.str(c.refId)
                 o.optInt(c.age); o.str(c.description); o.str(c.searchKey); o.int(c.qualityTag?.ordinal ?: -1)
+                o.str(c.trailer)
             }
         }
 
@@ -122,6 +123,7 @@ object Snapshot {
                     headers = i.map(), kind = kinds[i.int()], tvgName = i.str(), refId = i.str(),
                     age = i.optInt(), description = i.str(), searchKey = i.str()!!,
                     qualityTag = i.int().let { q -> if (q < 0) null else tags[q] },
+                    trailer = i.str(),
                 )
             }
             M3uResult(list, tvg)
@@ -137,13 +139,13 @@ object Snapshot {
             for (m in lib.movies) {
                 o.str(m.id); o.str(m.name); o.str(m.url); o.shared(m.poster); o.shared(m.category); o.shared(m.year)
                 o.int(java.lang.Float.floatToIntBits(m.rating ?: Float.NaN)); o.long(m.added); o.optInt(m.xtreamId)
-                o.map(m.headers); o.str(m.plot); o.str(m.backdrop); o.optInt(m.age); o.str(m.searchKey)
+                o.map(m.headers); o.str(m.plot); o.str(m.backdrop); o.optInt(m.age); o.str(m.searchKey); o.str(m.trailer)
             }
             o.int(lib.series.size)
             for (s in lib.series) {
                 o.str(s.id); o.str(s.name); o.shared(s.poster); o.shared(s.category); o.shared(s.year)
                 o.int(java.lang.Float.floatToIntBits(s.rating ?: Float.NaN)); o.long(s.added); o.optInt(s.xtreamId)
-                o.str(s.plot); o.shared(s.genre); o.str(s.backdrop); o.optInt(s.age); o.str(s.searchKey)
+                o.str(s.plot); o.shared(s.genre); o.str(s.backdrop); o.optInt(s.age); o.str(s.searchKey); o.str(s.trailer)
                 o.int(s.episodes.size)
                 for (e in s.episodes) {
                     o.str(e.id); o.int(e.season); o.int(e.number); o.str(e.title); o.str(e.url)
@@ -162,20 +164,21 @@ object Snapshot {
                 VodItem(
                     id = i.str()!!, name = i.str()!!, url = i.str()!!, poster = i.shared(), category = i.shared() ?: "",
                     year = i.shared(), rating = rating(), added = i.long(), xtreamId = i.optInt(), headers = i.map(),
-                    plot = i.str(), backdrop = i.str(), age = i.optInt(), searchKey = i.str()!!,
+                    plot = i.str(), backdrop = i.str(), age = i.optInt(), searchKey = i.str()!!, trailer = i.str(),
                 )
             }
             val series = List(i.int()) {
                 val sid = i.str()!!; val name = i.str()!!; val poster = i.shared(); val cat = i.shared() ?: ""
                 val year = i.shared(); val rating = rating(); val added = i.long(); val xid = i.optInt()
                 val plot = i.str(); val genre = i.shared(); val backdrop = i.str(); val age = i.optInt(); val key = i.str()!!
+                val trailer = i.str()
                 val eps = List(i.int()) {
                     Episode(
                         id = i.str()!!, season = i.int(), number = i.int(), title = i.str()!!, url = i.str()!!,
                         image = i.shared(), plot = i.str(), durationSecs = i.int(), headers = i.map(),
                     )
                 }
-                SeriesItem(sid, name, poster, cat, year, rating, added, xid, plot, genre, backdrop, eps, age, key)
+                SeriesItem(sid, name, poster, cat, year, rating, added, xid, plot, genre, backdrop, eps, age, key, trailer)
             }
             Library(movies, movieCats, series, seriesCats)
         }

@@ -21,6 +21,8 @@ class Channel(
     val age: Int? = null,
     /** Sinopse/descrição, quando a lista informa (plot, description…). */
     val description: String? = null,
+    /** ID do trailer no YouTube, quando a lista informa. */
+    val trailer: String? = null,
     /** calculados uma vez (ou lidos prontos do retrato da lista) */
     val searchKey: String = Text.normalize(name),
     val qualityTag: QualityTag? = QualityTag.fromName(name),

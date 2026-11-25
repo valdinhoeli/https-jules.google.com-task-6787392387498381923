@@ -75,6 +75,13 @@ class DetailsActivity : AppCompatActivity() {
         b.rvEpisodes.adapter = epAdapter
 
         b.btnPlay.setOnClickListener { playMain() }
+        b.btnTrailer.setOnClickListener {
+            val m = movie
+            val s = series
+            com.iptv.player4k.ui.trailer.TrailerActivity.open(
+                this, trailerId(), m?.name ?: s!!.name, details?.year ?: m?.year ?: s?.year,
+            )
+        }
         b.btnMyList.setOnClickListener {
             val added = store.toggleMyList(pid, myKey)
             Toast.makeText(this, if (added) R.string.added_mylist else R.string.removed_mylist, Toast.LENGTH_SHORT).show()
@@ -136,6 +143,14 @@ class DetailsActivity : AppCompatActivity() {
         }
         bindMyList()
         bindResume()
+        bindTrailer()
+    }
+
+    private fun trailerId(): String? = details?.trailer ?: movie?.trailer ?: series?.trailer
+
+    /** "Trailer" quando a lista/painel informa; senão "Buscar trailer" (abre a busca no YouTube). */
+    private fun bindTrailer() {
+        b.btnTrailer.setText(if (trailerId() != null) R.string.trailer else R.string.trailer_search)
     }
 
     /** Sem sinopse na lista nem no servidor: avisa em vez de deixar o espaço vazio. */

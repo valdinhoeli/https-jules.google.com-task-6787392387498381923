@@ -130,6 +130,7 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                     added = m["added"]?.toLongOrNull() ?: 0L,
                     xtreamId = id.toIntOrNull(),
                     age = ageOf(m["age"] ?: m["mpaa_rating"] ?: m["rating_mpaa"] ?: m["certification"]),
+                    trailer = com.iptv.player4k.util.Trailer.youtubeId(m["youtube_trailer"] ?: m["trailer"]),
                 )
             }
             return out
@@ -154,6 +155,7 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                     genre = m["genre"]?.takeIf { it.isNotBlank() },
                     backdrop = m["backdrop_path"]?.takeIf { it.startsWith("http") },
                     age = ageOf(m["age"] ?: m["mpaa_rating"] ?: m["rating_mpaa"] ?: m["certification"]),
+                    trailer = com.iptv.player4k.util.Trailer.youtubeId(m["youtube_trailer"] ?: m["trailer"]),
                 )
             }
             return out
@@ -201,8 +203,12 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                 backdrop = info?.get("backdrop_path").str()?.takeIf { it.startsWith("http") },
                 poster = (info?.get("movie_image").str() ?: info?.get("cover_big").str())?.takeIf { it.startsWith("http") },
                 age = ageOf(info?.get("age").str() ?: info?.get("mpaa_rating").str() ?: info?.get("rating_mpaa").str() ?: info?.get("certification").str()),
+                trailer = trailerOf(info),
             )
         }
+
+        private fun trailerOf(info: JsonObject?): String? =
+            com.iptv.player4k.util.Trailer.youtubeId(info?.get("youtube_trailer").str() ?: info?.get("trailer").str())
 
         fun parseSeriesInfo(json: String, api: XtreamApi): MediaDetails {
             val root = JsonParser.parseString(json).obj() ?: return MediaDetails()
@@ -247,6 +253,7 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                 backdrop = info?.get("backdrop_path").str()?.takeIf { it.startsWith("http") },
                 poster = info?.get("cover").str()?.takeIf { it.startsWith("http") },
                 episodes = episodes,
+                trailer = trailerOf(info),
                 age = ageOf(info?.get("age").str() ?: info?.get("mpaa_rating").str() ?: info?.get("rating_mpaa").str() ?: info?.get("certification").str()),
             )
         }
