@@ -21,7 +21,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.2.1.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.2.2.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -37,6 +37,16 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.2.2 — abertura rápida**
+- A partir da segunda vez, a lista abre do "retrato" já processado (binário compacto e
+  cifrado) em vez de reinterpretar o M3U: numa lista de 50 mil itens, a segunda abertura
+  caiu de ~150 s para ~6 s no emulador sem aceleração (num aparelho real é bem menos)
+- Pré-carregamento: a lista salva começa a ser lida assim que o app abre; a tela de
+  abertura espera até 2 s para já mostrar os canais
+- Catálogo e guia salvos aparecem na hora; a atualização pela internet acontece em
+  segundo plano (lista a cada 24 h, catálogo 24 h, guia 12 h) sem tela de "Carregando"
+- Leitura criptografada em blocos de 64 KB (a padrão do Android usa 512 bytes)
 
 **Correções da 1.2.1**
 - Listas adicionadas como **Link** de painel Xtream (`get.php`) ou com links de canais no

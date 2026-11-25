@@ -17,9 +17,8 @@ class VodItem(
     val plot: String? = null,
     val backdrop: String? = null,
     val age: Int? = null,
-) {
-    val searchKey = Text.normalize(name)
-}
+    val searchKey: String = Text.normalize(name),
+)
 
 class Episode(
     val id: String,
@@ -48,9 +47,8 @@ class SeriesItem(
     /** Episódios já conhecidos (listas M3U). No Xtream vêm sob demanda. */
     val episodes: List<Episode> = emptyList(),
     val age: Int? = null,
-) {
-    val searchKey = Text.normalize(name)
-}
+    val searchKey: String = Text.normalize(name),
+)
 
 /** Detalhes extras (sinopse, elenco…) e episódios carregados sob demanda. */
 class MediaDetails(

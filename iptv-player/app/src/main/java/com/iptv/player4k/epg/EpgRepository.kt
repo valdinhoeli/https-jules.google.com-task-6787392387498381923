@@ -37,6 +37,17 @@ class EpgRepository(private val context: Context) {
     }
 
     /** @return null quando a lista não tem nenhuma fonte de guia. */
+    /** Guia salvo no aparelho, mesmo antigo (para mostrar na hora). */
+    suspend fun loadCached(p: Playlist, tvgUrls: List<String>, creds: XtreamCreds?): EpgData? = withContext(Dispatchers.IO) {
+        val src = sources(p, tvgUrls, creds)
+        if (src.isEmpty()) return@withContext null
+        val key = p.id + "|" + src.joinToString("|")
+        memo[key]?.let { return@withContext it }
+        readCache(File(context.filesDir, "epg/${p.id}.bin"), src.joinToString("|").hashCode())?.also { memo[key] = it }
+    }
+
+    fun isFresh(d: EpgData?) = d != null && System.currentTimeMillis() - d.updatedAt < TTL
+
     suspend fun load(p: Playlist, tvgUrls: List<String>, live: List<Channel>, force: Boolean, creds: XtreamCreds?): EpgData? =
         withContext(Dispatchers.IO) {
             val src = sources(p, tvgUrls, creds)
@@ -49,6 +60,7 @@ class EpgRepository(private val context: Context) {
             try {
                 val data = download(src, p, live)
                 writeCache(cache, sig, data)
+                memo[p.id + "|" + src.joinToString("|")] = data
                 data
             } catch (e: Exception) {
                 cached ?: readCache(cache, sig) ?: throw e
@@ -148,6 +160,7 @@ class EpgRepository(private val context: Context) {
     }
 
     companion object {
+        private val memo = java.util.concurrent.ConcurrentHashMap<String, EpgData>()
         private const val VERSION = 2
         private const val TTL = 12 * 60 * 60 * 1000L
         private const val BEFORE = 3 * 60 * 60 * 1000L

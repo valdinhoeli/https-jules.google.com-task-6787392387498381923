@@ -21,9 +21,10 @@ class Channel(
     val age: Int? = null,
     /** Sinopse/descrição, quando a lista informa (plot, description…). */
     val description: String? = null,
+    /** calculados uma vez (ou lidos prontos do retrato da lista) */
+    val searchKey: String = Text.normalize(name),
+    val qualityTag: QualityTag? = QualityTag.fromName(name),
 ) {
-    val searchKey: String = Text.normalize(name)
-    val qualityTag: QualityTag? = QualityTag.fromName(name)
 
     override fun equals(other: Any?) = other is Channel && other.url == url && other.name == name
     override fun hashCode() = 31 * url.hashCode() + name.hashCode()

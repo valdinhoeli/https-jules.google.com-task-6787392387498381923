@@ -15,30 +15,69 @@ class LibraryRepository(private val context: Context) {
      * catálogo completo com capas, sinopse, elenco, temporadas e episódios.
      * Sem painel (ou se a API falhar), monta filmes e séries a partir da própria lista M3U.
      */
-    suspend fun load(p: Playlist, channels: List<Channel>, force: Boolean, creds: XtreamCreds?): Library =
-        withContext(Dispatchers.IO) {
+    /**
+     * [offline]: usa só o que já está no aparelho (abre na hora, mesmo com cache antigo);
+     * devolve null se não houver nada salvo. A atualização pela internet é feita depois, em segundo plano.
+     * [m3uFingerprint]: versão da lista M3U (para reaproveitar o retrato do catálogo).
+     */
+    suspend fun load(
+        p: Playlist, channels: List<Channel>, force: Boolean, creds: XtreamCreds?,
+        m3uFingerprint: String = "", offline: Boolean = false,
+    ): Library? = withContext(Dispatchers.IO) {
+        synchronized(lockFor(p.id)) {
+            val fp = fingerprint(p, creds, m3uFingerprint)
+            if (!force && fp != null) {
+                memo[p.id]?.takeIf { it.first == fp }?.let { return@withContext it.second }
+                Snapshot.readLibrary(context, p.id, fp)?.let { memo[p.id] = fp to it; return@withContext it }
+            }
+            if (offline && creds != null && fp == null) return@withContext null
+
             val fromM3u = { LibraryBuilder.fromChannels(channels) }
-            if (creds == null) return@withContext fromM3u()
-            try {
-                val lib = loadXtream(p, creds, force)
-                if (lib.isEmpty) fromM3u() else lib
+            val lib = if (creds == null) fromM3u() else try {
+                val l = loadXtream(p, creds, force, network = !offline)
+                if (l.isEmpty) fromM3u() else l
             } catch (e: Exception) {
+                if (offline) return@withContext null
                 val fallback = fromM3u()
                 if (fallback.isEmpty && p.type == PlaylistType.XTREAM) throw e
                 fallback
             }
+            val newFp = fingerprint(p, creds, m3uFingerprint)
+            if (newFp != null) {
+                memo[p.id] = newFp to lib
+                runCatching { Snapshot.writeLibrary(context, p.id, newFp, lib) }
+            }
+            lib
         }
+    }
+
+    private val actions = listOf("get_vod_categories", "get_vod_streams", "get_series_categories", "get_series")
+
+    /** Versão dos dados de origem: arquivos JSON do painel ou a lista M3U. null = ainda não baixado. */
+    private fun fingerprint(p: Playlist, creds: XtreamCreds?, m3uFp: String): String? {
+        if (creds == null) return "m3u:$m3uFp"
+        val files = actions.map { File(dir(p), "$it.json") }
+        if (files.none { it.exists() }) return null
+        return "xt:${creds.hashCode()}:" + files.joinToString(",") { "${it.length()}:${it.lastModified()}" }
+    }
+
+    /** Catálogo do painel com mais de 24 h (vale atualizar em segundo plano). */
+    fun isStale(p: Playlist, creds: XtreamCreds?): Boolean {
+        if (creds == null) return false
+        val f = File(dir(p), "get_vod_streams.json")
+        return !f.exists() || System.currentTimeMillis() - f.lastModified() > TTL
+    }
 
     private fun dir(p: Playlist) = File(context.filesDir, "library/${p.id}")
 
-    private fun loadXtream(p: Playlist, creds: XtreamCreds, force: Boolean): Library {
+    private fun loadXtream(p: Playlist, creds: XtreamCreds, force: Boolean, network: Boolean = true): Library {
         val dir = dir(p).apply { mkdirs() }
         val api = XtreamApi(creds, p.userAgent)
         var lastError: Exception? = null
         fun file(action: String): File? {
             val f = File(dir, "$action.json")
             val stale = System.currentTimeMillis() - f.lastModified() > TTL
-            if (force || !f.exists() || f.length() == 0L || stale) {
+            if (network && (force || !f.exists() || f.length() == 0L || stale)) {
                 try {
                     api.download(action, f)
                 } catch (e: Exception) {
@@ -90,11 +129,15 @@ class LibraryRepository(private val context: Context) {
 
     fun deleteCache(p: Playlist) {
         dir(p).deleteRecursively()
+        memo.remove(p.id)
     }
 
     companion object {
         private const val TTL = 24 * 60 * 60 * 1000L
         /** compartilhado entre telas: evita buscar a mesma sinopse duas vezes */
         private val details = ConcurrentHashMap<String, MediaDetails>()
+        private val memo = ConcurrentHashMap<String, Pair<String, Library>>()
+        private val locks = ConcurrentHashMap<String, Any>()
+        private fun lockFor(id: String) = locks.getOrPut(id) { Any() }
     }
 }

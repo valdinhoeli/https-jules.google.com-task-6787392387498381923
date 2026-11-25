@@ -10,6 +10,7 @@ import com.iptv.player4k.data.Library
 import com.iptv.player4k.data.LibraryRepository
 import com.iptv.player4k.data.Playlist
 import com.iptv.player4k.data.PlaylistRepository
+import com.iptv.player4k.data.PlaylistType
 import com.iptv.player4k.data.PlaylistStore
 import com.iptv.player4k.data.Session
 import com.iptv.player4k.data.XtreamCreds
@@ -98,12 +99,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var started = false
     private var loadedId: String? = null
 
+    /** true quando já há algo para mostrar (a tela de abertura pode sair). */
+    @Volatile var ready = false
+        private set
+
     fun start() {
         if (started) return
         started = true
         val p = store.selected()
         _state.update { it.copy(playlist = p, hasPlaylists = p != null) }
-        if (p != null) load(p, forceRefresh = false)
+        if (p != null) load(p, forceRefresh = false) else ready = true
     }
 
     fun selectPlaylist(p: Playlist) {
@@ -145,7 +150,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Session.creds = null
     }
 
-    private fun load(p: Playlist, forceRefresh: Boolean) {
+    /**
+     * [quiet]: atualização em segundo plano — a lista atual continua na tela e,
+     * se a internet falhar, nada muda (tenta de novo na próxima abertura).
+     */
+    private fun load(p: Playlist, forceRefresh: Boolean, quiet: Boolean = false) {
         loadJob?.cancel()
         if (p.id != loadedId) {
             clearData()
@@ -155,7 +164,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(playlist = p, hasPlaylists = true, loading = true, error = null) }
         loadJob = viewModelScope.launch {
             try {
+                com.iptv.player4k.util.Perf.mark("lista: início")
                 val result = repo.load(p, forceRefresh)
+                ready = true
+                com.iptv.player4k.util.Perf.mark("lista: ${result.channels.size} itens prontos")
                 val saved = if (forceRefresh) p.copy(updatedAt = System.currentTimeMillis()).also { store.save(it) } else p
                 all = result.channels
                 liveAll = all.filter { it.kind == ContentKind.LIVE }
@@ -166,28 +178,48 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // painel Xtream por trás da lista (tipo Xtream, link get.php ou links dos canais)
                 val creds = XtreamCreds.fromPlaylist(saved) ?: XtreamCreds.fromChannels(all)
                 Session.creds = creds
-                loadLibrary(saved, forceRefresh, creds)
-                loadEpg(saved, result.tvgUrls, forceRefresh, creds)
+                val extrasForce = forceRefresh && !quiet
+                loadLibrary(saved, extrasForce, creds, repo.fingerprint(saved))
+                loadEpg(saved, result.tvgUrls, extrasForce, creds)
+                // lista baixada há mais de 24 h: atualiza sozinha em segundo plano
+                if (!forceRefresh && saved.type != PlaylistType.FILE &&
+                    System.currentTimeMillis() - saved.updatedAt > AUTO_REFRESH_MS
+                ) {
+                    viewModelScope.launch { load(saved, forceRefresh = true, quiet = true) }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val msg = e.message ?: e.javaClass.simpleName
-                _state.update { it.copy(loading = false, error = msg) }
-                _messages.tryEmit(getApplication<Application>().getString(R.string.err_load, msg))
+                ready = true
+                if (quiet && all.isNotEmpty()) {
+                    _state.update { it.copy(loading = false) }
+                } else {
+                    val msg = e.message ?: e.javaClass.simpleName
+                    _state.update { it.copy(loading = false, error = msg) }
+                    _messages.tryEmit(getApplication<Application>().getString(R.string.err_load, msg))
+                }
             }
         }
     }
 
-    private fun loadLibrary(p: Playlist, force: Boolean, creds: XtreamCreds?) {
+    private fun loadLibrary(p: Playlist, force: Boolean, creds: XtreamCreds?, m3uFp: String) {
         libJob?.cancel()
-        _library.update { it.copy(loading = true, error = null) }
+        if (_library.value.library.isEmpty) _library.update { it.copy(loading = true, error = null) }
         val channels = all
         libJob = viewModelScope.launch {
             try {
-                val lib = libraryRepo.load(p, channels, force, creds)
-                Session.library = lib
-                _library.value = LibraryState(loading = false, library = lib)
-                applyParental()
+                // 1) o que já está salvo no aparelho: aparece na hora
+                if (!force) {
+                    libraryRepo.load(p, channels, false, creds, m3uFp, offline = true)?.let { cached ->
+                        publishLibrary(cached)
+                        com.iptv.player4k.util.Perf.mark("catálogo (cache): ${cached.movies.size} filmes, ${cached.series.size} séries")
+                        if (!libraryRepo.isStale(p, creds)) return@launch
+                    }
+                }
+                // 2) internet (primeira vez, atualização manual ou catálogo com mais de 24 h)
+                val lib = libraryRepo.load(p, channels, force, creds, m3uFp) ?: return@launch
+                com.iptv.player4k.util.Perf.mark("catálogo: ${lib.movies.size} filmes, ${lib.series.size} séries")
+                publishLibrary(lib)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -196,13 +228,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun publishLibrary(lib: Library) {
+        Session.library = lib
+        _library.value = LibraryState(loading = false, library = lib)
+        applyParental()
+    }
+
     private fun loadEpg(p: Playlist, tvgUrls: List<String>, force: Boolean, creds: XtreamCreds?) {
         epgJob?.cancel()
-        _epg.update { it.copy(loading = true, error = null, noSource = false) }
+        if (_epg.value.data == null) _epg.update { it.copy(loading = true, error = null, noSource = false) }
         val channels = liveAll
         epgJob = viewModelScope.launch {
             try {
+                // guia salvo aparece na hora; só baixa se tiver mais de 12 h (ou atualização manual)
+                if (!force) {
+                    val cached = epgRepo.loadCached(p, tvgUrls, creds)
+                    if (cached != null) {
+                        Session.epg = cached
+                        _epg.value = EpgState(loading = false, data = cached)
+                        com.iptv.player4k.util.Perf.mark("guia (cache)")
+                        if (epgRepo.isFresh(cached)) return@launch
+                    }
+                }
                 val data = epgRepo.load(p, tvgUrls, channels, force, creds)
+                com.iptv.player4k.util.Perf.mark("guia pronto")
                 Session.epg = data
                 _epg.value = EpgState(loading = false, data = data, noSource = data == null)
             } catch (e: CancellationException) {
@@ -309,6 +358,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        private const val AUTO_REFRESH_MS = 24 * 60 * 60 * 1000L
         const val GROUP_ALL = "\u0000all"
         const val GROUP_FAV = "\u0000fav"
         const val GROUP_RECENT = "\u0000recent"

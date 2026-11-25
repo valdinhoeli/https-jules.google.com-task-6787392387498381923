@@ -119,7 +119,8 @@ object Crypto {
         out.write(iv)
         val c = Cipher.getInstance("AES/CTR/NoPadding")
         c.init(Cipher.ENCRYPT_MODE, dataKey(ctx), IvParameterSpec(iv))
-        return CipherOutputStream(out, c)
+        // CipherOutputStream do Android cifra em pedaços pequenos; o buffer junta em blocos grandes
+        return java.io.BufferedOutputStream(CipherOutputStream(out, c), 64 * 1024)
     }
 
     /** Arquivos antigos (sem cabeçalho) são lidos como texto puro. */
@@ -141,6 +142,46 @@ object Crypto {
         }
         val c = Cipher.getInstance("AES/CTR/NoPadding")
         c.init(Cipher.DECRYPT_MODE, dataKey(ctx), IvParameterSpec(iv))
-        return CipherInputStream(bin, c)
+        return FastCipherInputStream(bin, c)
+    }
+
+    /**
+     * O CipherInputStream do Android decifra 512 bytes por vez (muito lento em listas grandes).
+     * Aqui lemos e deciframos em blocos de 64 KB.
+     */
+    private class FastCipherInputStream(private val src: InputStream, private val cipher: Cipher) : InputStream() {
+        private val inBuf = ByteArray(64 * 1024)
+        private var out: ByteArray = ByteArray(0)
+        private var pos = 0
+        private var eof = false
+
+        private fun fill(): Boolean {
+            while (pos >= out.size) {
+                if (eof) return false
+                val n = src.read(inBuf)
+                if (n < 0) {
+                    eof = true
+                    out = cipher.doFinal() ?: ByteArray(0)
+                } else {
+                    out = cipher.update(inBuf, 0, n) ?: ByteArray(0)
+                }
+                pos = 0
+            }
+            return true
+        }
+
+        override fun read(): Int = if (!fill()) -1 else out[pos++].toInt() and 0xFF
+
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            if (len == 0) return 0
+            if (!fill()) return -1
+            val n = minOf(len, out.size - pos)
+            System.arraycopy(out, pos, b, off, n)
+            pos += n
+            return n
+        }
+
+        override fun available(): Int = out.size - pos
+        override fun close() = src.close()
     }
 }

@@ -10,6 +10,7 @@ class App : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         Http.configure(this)
+        com.iptv.player4k.data.Preloader.start(this)
     }
 
     override fun newImageLoader(): ImageLoader =

@@ -66,7 +66,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashStart = android.os.SystemClock.elapsedRealtime()
+        // a tela de abertura espera a lista salva ficar pronta (no máximo 2 s)
+        installSplashScreen().setKeepOnScreenCondition {
+            !vm.ready && android.os.SystemClock.elapsedRealtime() - splashStart < 2_000
+        }
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
