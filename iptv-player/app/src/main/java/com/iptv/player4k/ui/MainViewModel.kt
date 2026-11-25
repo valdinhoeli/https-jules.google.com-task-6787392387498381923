@@ -12,6 +12,7 @@ import com.iptv.player4k.data.Playlist
 import com.iptv.player4k.data.PlaylistRepository
 import com.iptv.player4k.data.PlaylistStore
 import com.iptv.player4k.data.Session
+import com.iptv.player4k.data.XtreamCreds
 import com.iptv.player4k.epg.EpgData
 import com.iptv.player4k.epg.EpgRepository
 import com.iptv.player4k.security.ParentalRules
@@ -141,6 +142,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _epg.value = EpgState()
         Session.library = Library.EMPTY
         Session.epg = null
+        Session.creds = null
     }
 
     private fun load(p: Playlist, forceRefresh: Boolean) {
@@ -161,8 +163,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 loadedId = p.id
                 _state.update { it.copy(loading = false, error = null, totalCount = live.size, allCount = all.size) }
                 rebuild()
-                loadLibrary(saved, forceRefresh)
-                loadEpg(saved, result.tvgUrls, forceRefresh)
+                // painel Xtream por trás da lista (tipo Xtream, link get.php ou links dos canais)
+                val creds = XtreamCreds.fromPlaylist(saved) ?: XtreamCreds.fromChannels(all)
+                Session.creds = creds
+                loadLibrary(saved, forceRefresh, creds)
+                loadEpg(saved, result.tvgUrls, forceRefresh, creds)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -173,13 +178,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun loadLibrary(p: Playlist, force: Boolean) {
+    private fun loadLibrary(p: Playlist, force: Boolean, creds: XtreamCreds?) {
         libJob?.cancel()
         _library.update { it.copy(loading = true, error = null) }
         val channels = all
         libJob = viewModelScope.launch {
             try {
-                val lib = libraryRepo.load(p, channels, force)
+                val lib = libraryRepo.load(p, channels, force, creds)
                 Session.library = lib
                 _library.value = LibraryState(loading = false, library = lib)
                 applyParental()
@@ -191,13 +196,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun loadEpg(p: Playlist, tvgUrls: List<String>, force: Boolean) {
+    private fun loadEpg(p: Playlist, tvgUrls: List<String>, force: Boolean, creds: XtreamCreds?) {
         epgJob?.cancel()
         _epg.update { it.copy(loading = true, error = null, noSource = false) }
         val channels = liveAll
         epgJob = viewModelScope.launch {
             try {
-                val data = epgRepo.load(p, tvgUrls, channels, force)
+                val data = epgRepo.load(p, tvgUrls, channels, force, creds)
                 Session.epg = data
                 _epg.value = EpgState(loading = false, data = data, noSource = data == null)
             } catch (e: CancellationException) {

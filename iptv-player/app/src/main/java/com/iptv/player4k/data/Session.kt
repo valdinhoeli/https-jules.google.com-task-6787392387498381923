@@ -7,6 +7,8 @@ object Session {
     @Volatile var playlist: Playlist? = null
     @Volatile var library: Library = Library.EMPTY
     @Volatile var epg: EpgData? = null
+    /** painel Xtream detectado para a lista atual (catálogo, sinopses e guia pela API) */
+    @Volatile var creds: XtreamCreds? = null
     /** canais ao vivo visíveis (respeitando o controle dos pais) */
     @Volatile var live: List<Channel> = emptyList()
     /** todos os grupos/categorias da lista (para a tela de bloqueio) */

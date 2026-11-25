@@ -46,7 +46,7 @@ class VodFragment : Fragment(R.layout.fragment_vod) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val b = FragmentVodBinding.bind(view).also { this.b = it }
         savedInstanceState?.getString(KEY_GROUP)?.let { group.value = it }
-        homeAdapter = VodHomeAdapter(onOpen = ::open, onPlay = ::play)
+        homeAdapter = VodHomeAdapter(onOpen = ::open, onPlay = ::play, plotFor = ::loadPlot)
         b.rvHome.layoutManager = LinearLayoutManager(requireContext())
         b.rvHome.adapter = homeAdapter
         b.rvHome.itemAnimator = null
@@ -152,6 +152,19 @@ class VodFragment : Fragment(R.layout.fragment_vod) {
                     if (newLib) b.rvHome.scrollToPosition(0)
                 }
             }
+        }
+    }
+
+    /** Sinopse do destaque: lista de filmes do Xtream não traz; busca nos detalhes (com cache). */
+    private fun loadPlot(item: PosterItem, cb: (String?) -> Unit) {
+        val p = vm.state.value.playlist ?: return cb(null)
+        val m = item.movie
+        val s = item.series
+        val key = m?.xtreamId?.let { "m$it" } ?: s?.xtreamId?.let { "s$it" } ?: return cb(null)
+        vm.libraryRepo.cached(key)?.let { return cb(it.plot) }
+        viewLifecycleOwner.lifecycleScope.launch {
+            val d = runCatching { if (m != null) vm.libraryRepo.movieDetails(p, m) else vm.libraryRepo.seriesDetails(p, s!!) }.getOrNull()
+            cb(d?.plot)
         }
     }
 

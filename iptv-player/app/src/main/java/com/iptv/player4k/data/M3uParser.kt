@@ -15,7 +15,6 @@ class M3uResult(val channels: List<Channel>, val tvgUrls: List<String>)
 
 object M3uParser {
     private val attrRegex = Regex("""([A-Za-z0-9_\-]+)\s*=\s*"([^"]*)"""")
-    private val episodeRegex = Regex("""(?i)(^|[^A-Z0-9])[ST]\d{1,2}\s*[._-]?\s*EP?\d{1,3}([^0-9]|$)""")
     private val liveWords = listOf("canais", "canal", "24h", "24 h", "24 horas", "ao vivo", " live ")
     private val seriesWords = listOf("serie", "series", "temporada", "season")
     private val movieWords = listOf("filme", "movie", "vod", "cinema", "lancamento")
@@ -36,7 +35,7 @@ object M3uParser {
                 line.startsWith("#EXTM3U", ignoreCase = true) -> {
                     attrRegex.findAll(line).forEach { m ->
                         if (m.groupValues[1].lowercase() in setOf("url-tvg", "x-tvg-url", "tvg-url", "url-epg", "epg-url", "x-epg-url")) {
-                            m.groupValues[2].split(',').map { it.trim() }
+                            m.groupValues[2].split(',', ' ', ';', '|').map { it.trim() }
                                 .filter { it.startsWith("http", true) }.forEach { tvgUrls += it }
                         }
                     }
@@ -83,6 +82,9 @@ object M3uParser {
                             headers = if (headers.isEmpty()) emptyMap() else HashMap(headers),
                             kind = classify(url, group, name),
                             tvgName = attrs["tvg-name"]?.takeIf { it.isNotBlank() },
+                            description = (attrs["plot"] ?: attrs["description"] ?: attrs["tvg-description"]
+                                ?: attrs["tvg-plot"] ?: attrs["desc"] ?: attrs["synopsis"] ?: attrs["sinopse"])
+                                ?.trim()?.takeIf { it.length > 3 },
                             age = com.iptv.player4k.security.AgeRating.parse(
                                 attrs["tvg-rating"] ?: attrs["rating"] ?: attrs["parental-rating"] ?: attrs["age"]
                             ),
@@ -107,10 +109,12 @@ object M3uParser {
         if ("/series/" in u) return ContentKind.SERIES
         if ("/movie/" in u || "/movies/" in u) return ContentKind.MOVIE
         if ("/live/" in u) return ContentKind.LIVE
-        if (episodeRegex.containsMatchIn(name)) return ContentKind.SERIES
+        if (LibraryBuilder.hasStrongEpisodeMarker(name)) return ContentKind.SERIES
         val g = " " + com.iptv.player4k.util.Text.normalize(group) + " "
         if (liveWords.any { it in g }) return ContentKind.LIVE
         if (seriesWords.any { it in g }) return ContentKind.SERIES
+        // "Episódio 3", "Capítulo 12" num grupo que não é de canais ao vivo
+        if (LibraryBuilder.hasEpisodeWord(name)) return ContentKind.SERIES
         if (movieWords.any { it in g }) return ContentKind.MOVIE
         val path = u.substringBefore('?').substringBefore('|')
         if (vodExt.any { path.endsWith(it) }) return ContentKind.MOVIE

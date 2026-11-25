@@ -19,6 +19,8 @@ class Channel(
     val refId: String? = null,
     /** Classificação indicativa (idade), quando a lista informa. */
     val age: Int? = null,
+    /** Sinopse/descrição, quando a lista informa (plot, description…). */
+    val description: String? = null,
 ) {
     val searchKey: String = Text.normalize(name)
     val qualityTag: QualityTag? = QualityTag.fromName(name)

@@ -21,6 +21,8 @@ import com.iptv.player4k.util.Fmt
 class VodHomeAdapter(
     private val onOpen: (PosterItem) -> Unit,
     private val onPlay: (PosterItem) -> Unit,
+    /** busca a sinopse quando o item não traz (API Xtream) */
+    private val plotFor: (PosterItem, (String?) -> Unit) -> Unit = { _, cb -> cb(null) },
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private var rows: List<HomeRow> = emptyList()
@@ -84,6 +86,7 @@ class VodHomeAdapter(
     inner class HeroVH(val b: ItemHeroBinding) : RecyclerView.ViewHolder(b.root) {
         private var row: HomeRow.Hero? = null
         private var index = 0
+        private var current: PosterItem? = null
         private val handler = Handler(Looper.getMainLooper())
         private val rotate = object : Runnable {
             override fun run() {
@@ -127,6 +130,13 @@ class VodHomeAdapter(
             ).joinToString("  •  ")
             b.tvHeroPlot.text = item.plot
             b.tvHeroPlot.visibility = if (item.plot.isNullOrBlank()) View.GONE else View.VISIBLE
+            current = item
+            if (item.plot.isNullOrBlank()) plotFor(item) { plot ->
+                if (current === item && !plot.isNullOrBlank()) {
+                    b.tvHeroPlot.text = plot
+                    b.tvHeroPlot.visibility = View.VISIBLE
+                }
+            }
 
             val bg = item.backdrop ?: item.poster
             b.ivHeroBg.load(bg) { crossfade(700) }

@@ -230,4 +230,5 @@
     <string name="pip_prev">Canal anterior</string>
     <string name="pip_next">Próximo canal</string>
     <string name="pip_play">Reproduzir/pausar</string>
+    <string name="no_plot">Sinopse não informada pela lista.</string>
 </resources>

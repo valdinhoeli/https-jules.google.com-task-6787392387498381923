@@ -5,8 +5,8 @@ import android.util.Xml
 import com.iptv.player4k.data.Channel
 import com.iptv.player4k.data.Http
 import com.iptv.player4k.data.Playlist
-import com.iptv.player4k.data.PlaylistType
 import com.iptv.player4k.data.XtreamApi
+import com.iptv.player4k.data.XtreamCreds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -22,21 +22,24 @@ import java.util.zip.GZIPOutputStream
 /** Baixa o guia XMLTV (xml ou xml.gz), filtra e guarda um cache compacto. */
 class EpgRepository(private val context: Context) {
 
-    fun sources(p: Playlist, tvgUrls: List<String>): List<String> {
-        val custom = p.epgUrl.split(',', '\n', ' ').map { it.trim() }.filter { it.startsWith("http", true) }
-        if (custom.isNotEmpty()) return custom
+    /**
+     * Fontes do guia, em ordem: URL própria da lista (se o usuário informou) + guia do painel
+     * Xtream (xmltv.php) + endereços do cabeçalho do M3U. Todas são lidas e combinadas;
+     * se uma falhar, as outras continuam valendo.
+     */
+    fun sources(p: Playlist, tvgUrls: List<String>, creds: XtreamCreds?): List<String> {
         val list = ArrayList<String>()
-        if (p.type == PlaylistType.XTREAM) list += XtreamApi(p).xmltvUrl()
+        list += p.epgUrl.split(',', '\n', ' ', ';').map { it.trim() }.filter { it.startsWith("http", true) }
+        creds?.let { list += XtreamApi(it, p.userAgent).xmltvUrl() }
+        p.derivedXmltvUrl()?.let { list += it }
         list += tvgUrls
-        // link M3U de painel Xtream: o guia fica no xmltv.php do mesmo servidor
-        if (list.isEmpty()) p.derivedXmltvUrl()?.let { list += it }
         return list.distinct()
     }
 
     /** @return null quando a lista não tem nenhuma fonte de guia. */
-    suspend fun load(p: Playlist, tvgUrls: List<String>, live: List<Channel>, force: Boolean): EpgData? =
+    suspend fun load(p: Playlist, tvgUrls: List<String>, live: List<Channel>, force: Boolean, creds: XtreamCreds?): EpgData? =
         withContext(Dispatchers.IO) {
-            val src = sources(p, tvgUrls)
+            val src = sources(p, tvgUrls, creds)
             if (src.isEmpty()) return@withContext null
             val cache = File(context.filesDir, "epg/${p.id}.bin")
             val sig = src.joinToString("|").hashCode()

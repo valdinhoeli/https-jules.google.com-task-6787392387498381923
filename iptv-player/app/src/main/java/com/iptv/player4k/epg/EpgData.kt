@@ -72,17 +72,26 @@ class EpgData(
             return lo
         }
 
-        private val brackets = Regex("""\[.*?]|\(.*?\)""")
-        private val prefix = Regex("""^[a-z]{2,3}\s*[:|]\s*""")
-        private val quality = Regex("""(?<![a-z0-9])(fhd|uhd|hd|sd|4k|hevc|h265|h264|1080p?|720p?|hdr|alt|backup|br)(?![a-z0-9])""")
+        private val brackets = Regex("""\[.*?]|\(.*?\)|\{.*?}""")
+        private val prefix = Regex("""^[a-z]{2,3}\s*[:|\-]\s*""")
+        private val quality = Regex(
+            """(?<![a-z0-9])(fhd|uhd|hd|sd|4k|8k|hevc|h265|h264|1080p?|720p?|2160p?|hdr|alt|alt\d|backup|bkp|br|pt|ptbr|tv|canal|channel|ao vivo|live|24h|\d+fps|60fps|\+1)(?![a-z0-9])"""
+        )
+        private val tld = Regex("""\.(br|pt|us|uk|es|ar|mx|fr|de|it|tv|com)(\.[a-z]{2})?$""")
         private val nonAlnum = Regex("[^a-z0-9]")
+        // letras sobrescritas usadas em listas ("ᴴᴰ", "ᶠᴴᴰ", "²") viram letras normais na normalização
+        private val superscripts = mapOf('ᴴ' to 'h', 'ᴰ' to 'd', 'ᶠ' to 'f', 'ᵁ' to 'u', '²' to '2', '³' to '3', '⁴' to '4', 'ᴷ' to 'k')
 
-        /** "BR: Globo SP FHD [H265]" -> "globosp" */
+        /** "BR: Globo SP FHD [H265]" -> "globosp";  "Globo.br" -> "globo" */
         fun nameKey(s: String): String {
-            var k = brackets.replace(Text.normalize(s), " ").trim()
+            val plain = s.map { superscripts[it] ?: it }.joinToString("")
+            var k = brackets.replace(Text.normalize(plain), " ").trim()
+            k = tld.replace(k, "")
             k = prefix.replace(k, "")
+            k = k.replace('_', ' ').replace('.', ' ').replace('-', ' ')
             k = quality.replace(k, " ")
-            return nonAlnum.replace(k, "")
+            val out = nonAlnum.replace(k, "")
+            return out.ifEmpty { nonAlnum.replace(Text.normalize(plain), "") }
         }
     }
 }

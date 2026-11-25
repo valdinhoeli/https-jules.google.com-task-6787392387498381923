@@ -9,27 +9,31 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** Filmes e séries: API Xtream (com cache local) ou a própria lista M3U. */
 class LibraryRepository(private val context: Context) {
-    private val details = ConcurrentHashMap<String, MediaDetails>()
 
-    suspend fun load(p: Playlist, channels: List<Channel>, force: Boolean): Library = withContext(Dispatchers.IO) {
-        if (p.type == PlaylistType.XTREAM) {
+    /**
+     * Com painel Xtream (lista Xtream, link get.php ou links de canais no padrão Xtream) usa a API:
+     * catálogo completo com capas, sinopse, elenco, temporadas e episódios.
+     * Sem painel (ou se a API falhar), monta filmes e séries a partir da própria lista M3U.
+     */
+    suspend fun load(p: Playlist, channels: List<Channel>, force: Boolean, creds: XtreamCreds?): Library =
+        withContext(Dispatchers.IO) {
+            val fromM3u = { LibraryBuilder.fromChannels(channels) }
+            if (creds == null) return@withContext fromM3u()
             try {
-                loadXtream(p, force)
+                val lib = loadXtream(p, creds, force)
+                if (lib.isEmpty) fromM3u() else lib
             } catch (e: Exception) {
-                val fallback = LibraryBuilder.fromChannels(channels)
-                if (fallback.isEmpty) throw e
+                val fallback = fromM3u()
+                if (fallback.isEmpty && p.type == PlaylistType.XTREAM) throw e
                 fallback
             }
-        } else {
-            LibraryBuilder.fromChannels(channels)
         }
-    }
 
     private fun dir(p: Playlist) = File(context.filesDir, "library/${p.id}")
 
-    private fun loadXtream(p: Playlist, force: Boolean): Library {
+    private fun loadXtream(p: Playlist, creds: XtreamCreds, force: Boolean): Library {
         val dir = dir(p).apply { mkdirs() }
-        val api = XtreamApi(p)
+        val api = XtreamApi(creds, p.userAgent)
         var lastError: Exception? = null
         fun file(action: String): File? {
             val f = File(dir, "$action.json")
@@ -64,22 +68,25 @@ class LibraryRepository(private val context: Context) {
         )
     }
 
-    /** Sinopse/elenco do filme (Xtream). */
+    /** Sinopse/elenco do filme (API Xtream). */
     suspend fun movieDetails(p: Playlist, m: VodItem): MediaDetails? = withContext(Dispatchers.IO) {
         val id = m.xtreamId ?: return@withContext null
-        if (p.type != PlaylistType.XTREAM) return@withContext null
-        details["m$id"] ?: XtreamApi.parseVodInfo(XtreamApi(p).fetchString("get_vod_info", "&vod_id=$id"))
+        val creds = Session.creds ?: return@withContext null
+        details["m$id"] ?: XtreamApi.parseVodInfo(XtreamApi(creds, p.userAgent).fetchString("get_vod_info", "&vod_id=$id"))
             .also { details["m$id"] = it }
     }
 
-    /** Temporadas/episódios e detalhes da série. */
+    /** Temporadas/episódios e detalhes da série (API Xtream). */
     suspend fun seriesDetails(p: Playlist, s: SeriesItem): MediaDetails? = withContext(Dispatchers.IO) {
         val id = s.xtreamId ?: return@withContext null
-        if (p.type != PlaylistType.XTREAM) return@withContext null
-        details["s$id"] ?: XtreamApi(p).let { api ->
+        val creds = Session.creds ?: return@withContext null
+        details["s$id"] ?: XtreamApi(creds, p.userAgent).let { api ->
             XtreamApi.parseSeriesInfo(api.fetchString("get_series_info", "&series_id=$id"), api)
         }.also { details["s$id"] = it }
     }
+
+    /** Detalhes já carregados (para mostrar a sinopse no destaque sem nova consulta). */
+    fun cached(key: String): MediaDetails? = details[key]
 
     fun deleteCache(p: Playlist) {
         dir(p).deleteRecursively()
@@ -87,5 +94,7 @@ class LibraryRepository(private val context: Context) {
 
     companion object {
         private const val TTL = 24 * 60 * 60 * 1000L
+        /** compartilhado entre telas: evita buscar a mesma sinopse duas vezes */
+        private val details = ConcurrentHashMap<String, MediaDetails>()
     }
 }

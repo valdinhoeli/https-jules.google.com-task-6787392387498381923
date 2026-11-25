@@ -13,11 +13,15 @@ import java.io.Reader
 import java.net.URLEncoder
 
 /** Cliente da API Xtream Codes (player_api.php) para filmes, séries e guia. */
-class XtreamApi(p: Playlist) {
-    val base = Playlist.normalizeServer(p.server)
-    private val user = p.username.trim()
-    private val pass = p.password.trim()
-    private val userAgent = p.userAgent.ifBlank { Http.DEFAULT_USER_AGENT }
+class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
+    constructor(p: Playlist) : this(
+        XtreamCreds(Playlist.normalizeServer(p.server), p.username.trim(), p.password.trim()), p.userAgent,
+    )
+
+    val base = creds.server.trimEnd('/')
+    private val user = creds.username
+    private val pass = creds.password
+    private val userAgent = userAgent.ifBlank { Http.DEFAULT_USER_AGENT }
 
     fun apiUrl(action: String, extra: String = "") =
         "$base/player_api.php?username=${enc(user)}&password=${enc(pass)}&action=$action$extra"

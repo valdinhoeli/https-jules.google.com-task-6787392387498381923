@@ -81,6 +81,7 @@ class DetailsActivity : AppCompatActivity() {
             setEpisodes(s.episodes)
         }
         loadDetails()
+        if ((movie?.xtreamId ?: series?.xtreamId) == null || Session.creds == null) showNoPlotHint()
         b.btnPlay.requestFocus()
     }
 
@@ -106,6 +107,7 @@ class DetailsActivity : AppCompatActivity() {
             (d?.genre ?: s?.genre ?: m?.category ?: s?.category)?.takeIf { it.isNotBlank() },
         ).joinToString("  •  ")
         b.tvPlot.text = d?.plot ?: m?.plot ?: s?.plot
+        b.tvPlot.alpha = 1f
         b.tvPlot.isVisible = !b.tvPlot.text.isNullOrBlank()
         b.tvCredits.text = listOfNotNull(
             d?.cast?.let { getString(R.string.cast_label, it) },
@@ -128,6 +130,15 @@ class DetailsActivity : AppCompatActivity() {
         }
         bindMyList()
         bindResume()
+    }
+
+    /** Sem sinopse na lista nem no servidor: avisa em vez de deixar o espaço vazio. */
+    private fun showNoPlotHint() {
+        if (b.tvPlot.text.isNullOrBlank()) {
+            b.tvPlot.setText(R.string.no_plot)
+            b.tvPlot.alpha = 0.6f
+            b.tvPlot.isVisible = true
+        }
     }
 
     private fun bindMyList() {
@@ -174,6 +185,7 @@ class DetailsActivity : AppCompatActivity() {
                 if (series != null && d.episodes.isNotEmpty()) setEpisodes(d.episodes)
             }
             if (series != null && episodes.isEmpty()) b.tvNoEpisodes.isVisible = true
+            showNoPlotHint()
         }
     }
 
