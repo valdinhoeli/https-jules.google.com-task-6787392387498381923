@@ -139,14 +139,27 @@ class PlayerActivity : AppCompatActivity() {
         hideSystemUi()
         com.iptv.player4k.ui.SecureScreen.apply(this)
         setupControls()
-        panel = ChannelPanel(b) { pos ->
-            index = pos.coerceIn(0, channels.lastIndex)
-            playCurrent()
-        }
+        panel = ChannelPanel(
+            b,
+            onPick = { list, pos ->
+                // troca a fila para o grupo escolhido (CH+/CH- andam dentro dele)
+                if (list !== PlaybackQueue.channels) PlaybackQueue.set(PlaybackQueue.playlist, list)
+                index = pos.coerceIn(0, channels.lastIndex)
+                playCurrent()
+            },
+            onExit = { finish() },
+        )
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (panel.isShowing) panel.hide() else finish()
+                val live = channels.getOrNull(index)?.kind == ContentKind.LIVE
+                when {
+                    panel.isShowing -> panel.back()
+                    b.playerView.isControllerFullyVisible -> b.playerView.hideController()
+                    // canal ao vivo: voltar abre os grupos sem sair do canal
+                    live && Session.live.isNotEmpty() -> openPanel(withGroups = true)
+                    else -> finish()
+                }
             }
         })
     }
@@ -395,12 +408,12 @@ class PlayerActivity : AppCompatActivity() {
         v.tvBnNext.text = next?.let { "${getString(R.string.epg_next)}  ${Fmt.time(it.start)} · ${it.title}" }
     }
 
-    private fun openPanel() {
+    private fun openPanel(withGroups: Boolean = false) {
         if (channels.isEmpty()) return
         b.playerView.hideController()
         handler.removeCallbacks(hideOsd)
         b.osd.isVisible = false
-        panel.show(channels, index)
+        panel.show(channels, index, withGroups)
     }
 
     /** Sinopse e ficha do filme/série (lista ou painel Xtream), mostradas ao apertar OK. */

@@ -239,4 +239,9 @@
     <string name="trailer_error">Este trailer não pode ser exibido dentro do app.</string>
     <string name="trailer_no_app">Nenhum app para abrir o YouTube foi encontrado</string>
     <string name="channel_list">Lista de canais</string>
+    <string name="panel_groups">Grupos</string>
+    <string name="panel_all">Todos os canais</string>
+    <string name="panel_hint_groups">◀ Grupos</string>
+    <string name="exit_title">Sair do IPTV Player?</string>
+    <string name="exit_yes">Sair</string>
 </resources>

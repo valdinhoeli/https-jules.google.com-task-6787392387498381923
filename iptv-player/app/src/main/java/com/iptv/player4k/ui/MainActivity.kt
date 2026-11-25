@@ -82,6 +82,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         setSupportActionBar(b.toolbar)
+        // voltar na tela principal: pergunta antes de sair
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (searchItem?.isActionViewExpanded == true) { searchItem?.collapseActionView(); return }
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(R.string.exit_title)
+                    .setPositiveButton(R.string.exit_yes) { _, _ -> finish() }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+        })
         // marca: logo + "IPTV Player" com "4K" em destaque
         b.toolbar.setLogo(R.drawable.ic_brand)
         supportActionBar?.title = android.text.SpannableStringBuilder("IPTV Player  4K").apply {
@@ -128,6 +139,12 @@ class MainActivity : AppCompatActivity() {
             R.string.tab_guide to R.drawable.ic_guide,
         )
         tabs.forEach { (t, i) -> b.tabs.addTab(b.tabs.newTab().setText(t).setIcon(i), false) }
+        // controle remoto: a aba abre ao receber o foco (sem precisar apertar OK)
+        for (i in 0 until b.tabs.tabCount) {
+            val tab = b.tabs.getTabAt(i) ?: continue
+            tab.view.isFocusable = true
+            tab.view.setOnFocusChangeListener { _, has -> if (has && !tab.isSelected) tab.select() }
+        }
         b.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) = showTab(tab.position)
             override fun onTabUnselected(tab: TabLayout.Tab) = Unit
@@ -138,8 +155,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showTab(pos: Int) {
         vm.currentTab = pos
-        // no Guia em paisagem/TV, recolhe o título para a grade ganhar espaço
-        b.appBar.setExpanded(!(pos == 3 && resources.getBoolean(R.bool.wide_layout)), true)
+        // no Guia em paisagem/TV, esconde o título para a grade ganhar espaço
+        b.toolbar.isVisible = !(pos == 3 && resources.getBoolean(R.bool.wide_layout))
         val fm = supportFragmentManager
         val tag = "tab$pos"
         val tx = fm.beginTransaction().setReorderingAllowed(true)
