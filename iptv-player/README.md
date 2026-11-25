@@ -21,7 +21,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.2.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.2.1.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -37,6 +37,16 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**Correções da 1.2.1**
+- Listas adicionadas como **Link** de painel Xtream (`get.php`) ou com links de canais no
+  padrão Xtream agora usam a API do servidor: séries em catálogo (uma capa por série, com
+  temporadas e episódios), sinopse, elenco e guia (`xmltv.php`)
+- Séries em listas M3U comuns: reconhece S01E02, S01 E02, T1 EP2, 1x02,
+  "Temporada 1 Episódio 2", "Episódio 3", "Capítulo 12" e grupos em que cada grupo é a série
+- Guia combina todas as fontes (sua URL + painel + `url-tvg` da lista); uma com erro não
+  derruba as outras; casa nomes como "BR: GLOBO ᴴᴰ" com "Globo.br"
+- Sinopse lida de `plot`/`description` em listas M3U
 
 **Novidades da 1.2**
 - **Multi-tela**: 2 ou 4 canais ao vivo ao mesmo tempo; o quadro selecionado tem o áudio,

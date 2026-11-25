@@ -72,7 +72,7 @@ class EpgData(
             return lo
         }
 
-        private val brackets = Regex("""\[.*?]|\(.*?\)|\{.*?}""")
+        private val brackets = Regex("""\[.*?\]|\(.*?\)|\{.*?\}""")
         private val prefix = Regex("""^[a-z]{2,3}\s*[:|\-]\s*""")
         private val quality = Regex(
             """(?<![a-z0-9])(fhd|uhd|hd|sd|4k|8k|hevc|h265|h264|1080p?|720p?|2160p?|hdr|alt|alt\d|backup|bkp|br|pt|ptbr|tv|canal|channel|ao vivo|live|24h|\d+fps|60fps|\+1)(?![a-z0-9])"""

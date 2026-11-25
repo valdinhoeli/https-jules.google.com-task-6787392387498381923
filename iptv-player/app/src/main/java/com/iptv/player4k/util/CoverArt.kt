@@ -28,8 +28,13 @@ object CoverArt {
 
     fun colorFor(name: String): Int = palette[abs(name.trim().lowercase().hashCode()) % palette.size]
 
+    private val countryPrefix = Regex("""^[A-Za-z]{2,3}\s*[:|]\s*""")
+
     fun initials(name: String): String {
-        val words = name.replace(Regex("""[\[(].*?[\])]"""), " ")
+        // remove "BR:", "[ALT]", "(HD)" e letras sobrescritas como "ᴴᴰ"
+        val clean = countryPrefix.replace(name.trim(), "")
+            .filter { it.code !in 0x1D00..0x1DBF && it !in "²³⁴" }
+        val words = clean.replace(Regex("""[\[(].*?[\])]"""), " ")
             .split(Regex("""[\s|:._\-]+""")).filter { w -> w.any { it.isLetterOrDigit() } }
             .filterNot { it.uppercase() in setOf("HD", "FHD", "UHD", "SD", "4K", "BR", "TV") }
         return when {

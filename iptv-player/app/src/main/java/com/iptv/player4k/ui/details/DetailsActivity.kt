@@ -63,6 +63,12 @@ class DetailsActivity : AppCompatActivity() {
             insets
         }
         b.btnBack.setOnClickListener { finish() }
+        // ao rolar, o botão de voltar some para não cobrir os botões de assistir
+        b.scroll.setOnScrollChangeListener { _: androidx.core.widget.NestedScrollView, _: Int, y: Int, _: Int, _: Int ->
+            val limit = 120 * resources.displayMetrics.density
+            b.btnBack.alpha = (1f - y / limit).coerceIn(0f, 1f)
+            b.btnBack.isVisible = b.btnBack.alpha > 0.05f
+        }
 
         epAdapter = EpisodeAdapter({ series?.poster }) { i -> playEpisode(i) }
         b.rvEpisodes.layoutManager = LinearLayoutManager(this)
