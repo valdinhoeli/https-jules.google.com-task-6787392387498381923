@@ -41,6 +41,7 @@ class SettingsActivity : AppCompatActivity() {
             v.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
             insets
         }
+        b.toolbar.setTitle(R.string.settings_title)
         b.toolbar.setNavigationIcon(R.drawable.ic_arrow_back)
         b.toolbar.setNavigationOnClickListener { finish() }
         build()

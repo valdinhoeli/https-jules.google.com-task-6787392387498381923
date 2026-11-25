@@ -52,7 +52,8 @@ class VodFragment : Fragment(R.layout.fragment_vod) {
         b.rvHome.itemAnimator = null
         b.rvHome.setItemViewCacheSize(6)
 
-        val wide = resources.getBoolean(R.bool.wide_layout)
+        // barra lateral só em telas largas (TV/tablet); no celular, fileira no topo
+        val wide = resources.configuration.screenWidthDp >= 900
         groupAdapter = GroupAdapter(vertical = wide) { group.value = it }
         b.rvVodGroups.layoutManager = LinearLayoutManager(
             requireContext(), if (wide) LinearLayoutManager.VERTICAL else LinearLayoutManager.HORIZONTAL, false

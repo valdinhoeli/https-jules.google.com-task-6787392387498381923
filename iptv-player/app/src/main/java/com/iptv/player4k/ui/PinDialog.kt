@@ -35,7 +35,11 @@ object PinDialog {
                 db.etPin.setText("")
             }
         }
-        db.etPin.setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_DONE) { check(); true } else false }
+        // Enter/OK físico: consome a tecla inteira (o "soltar" não pode vazar para a tela de trás)
+        db.etPin.setOnKeyListener { _, code, ev ->
+            if (isConfirmKey(code)) { if (ev.action == android.view.KeyEvent.ACTION_UP) check(); true } else false
+        }
+        db.etPin.setOnEditorActionListener { _, id, ev -> if (ev == null && id == EditorInfo.IME_ACTION_DONE) { check(); true } else false }
         show(dialog) { dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { check() } }
         db.etPin.requestFocus()
     }
@@ -72,10 +76,17 @@ object PinDialog {
                 db.tilPin.error = activity.getString(R.string.pin_mismatch)
             }
         }
-        db.etPin.setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_DONE) { next(); true } else false }
+        // Enter/OK físico: consome a tecla inteira (o "soltar" não pode vazar para a tela de trás)
+        db.etPin.setOnKeyListener { _, code, ev ->
+            if (isConfirmKey(code)) { if (ev.action == android.view.KeyEvent.ACTION_UP) next(); true } else false
+        }
+        db.etPin.setOnEditorActionListener { _, id, ev -> if (ev == null && id == EditorInfo.IME_ACTION_DONE) { next(); true } else false }
         show(dialog) { dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { next() } }
         db.etPin.requestFocus()
     }
+
+    private fun isConfirmKey(code: Int) = code == android.view.KeyEvent.KEYCODE_ENTER ||
+        code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER
 
     private fun show(dialog: AlertDialog, onShow: () -> Unit) {
         dialog.setOnShowListener { onShow() }

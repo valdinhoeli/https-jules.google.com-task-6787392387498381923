@@ -11,13 +11,17 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 | **Fileiras por categoria** | **Série: temporadas e episódios** | **Player com guia** |
 | ![](docs/filmes-fileiras.png) | ![](docs/serie-episodios.png) | ![](docs/player-epg.png) |
 
+| Multi-tela | Controle dos pais | Grupos e classificação |
+|---|---|---|
+| ![](docs/multitela.png) | ![](docs/controle-pais.png) | ![](docs/classificacao.png) |
+
 | Celular: Filmes | Celular: Guia | Player 4K |
 |---|---|---|
 | ![](docs/filmes-celular.png) | ![](docs/guia-celular.png) | ![](docs/player-4k.png) |
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.1.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.2.0.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -33,6 +37,29 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**Novidades da 1.2**
+- **Multi-tela**: 2 ou 4 canais ao vivo ao mesmo tempo; o quadro selecionado tem o áudio,
+  OK de novo abre em tela cheia, segurar/MENU troca o canal do quadro
+- **Picture-in-Picture** com botões de canal anterior, play/pausa e próximo na janelinha
+- **Dicas**: Dica do dia, Recomendados para você (pelo que você assiste e salva)
+  e "Porque você assistiu…"
+- **Filmes e Séries por grupo** (categorias com contagem) além da tela inicial
+- **Capas e logos para tudo**: quando a lista não traz imagem, o app usa o logo do guia
+  (XMLTV) ou gera uma arte com as iniciais/título
+- **Guia extraído da lista**: lê `url-tvg`/`x-tvg-url`/`url-epg` e, em links `get.php`
+  de painéis Xtream, encontra o `xmltv.php` sozinho
+- **Controle dos pais**: PIN, classificação indicativa (L, 10, 12, 14, 16, 18) com selos nas
+  capas, bloqueio automático de categorias adultas, grupos bloqueados, listas protegidas
+  por PIN e desbloqueio temporário (30 min) pelo cadeado
+- **Segurança**: listas, servidor, usuário, senha, favoritos, histórico e cache da lista
+  cifrados com chave do Android Keystore; backup/cópia para outro aparelho desativados;
+  certificados instalados pelo usuário recusados (impede interceptar o HTTPS);
+  telas de PIN/senha sem captura; opção de bloquear prints do app todo; código ofuscado
+- **DNS seguro (DNS-over-HTTPS)**: Cloudflare, Google ou Quad9, contra bloqueio por DNS da
+  operadora (não é VPN)
+- Visual novo: tela de abertura, marca na barra, fundo em gradiente, abas em pílula,
+  tela de Configurações completa
 
 **Filmes e Séries (estilo streaming)**
 - Abas separadas: Ao vivo · Filmes · Séries · Guia
