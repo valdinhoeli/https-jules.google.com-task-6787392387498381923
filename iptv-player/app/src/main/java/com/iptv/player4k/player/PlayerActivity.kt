@@ -274,6 +274,7 @@ class PlayerActivity : AppCompatActivity() {
         b.playerView.findViewById<View>(R.id.btnPrev)?.isVisible = !single
         b.playerView.findViewById<View>(R.id.btnNext)?.isVisible = !single
         bindEpg(ch)
+        updateLiveUi()
         showOsd(ch)
         startMedia(ch)
         if (ch.kind != ContentKind.LIVE) resumeSaved(ch)
@@ -406,6 +407,8 @@ class PlayerActivity : AppCompatActivity() {
 
         override fun onPlayerError(error: PlaybackException) = handleError(error)
 
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = updatePlayLiveIcon()
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             // atualiza o ícone play/pausa da janela PiP
             if (Build.VERSION.SDK_INT >= 26 && isInPictureInPictureMode) {
@@ -483,9 +486,22 @@ class PlayerActivity : AppCompatActivity() {
         b.errorView.isVisible = false
     }
 
+    /** Canal ao vivo: sem barra de tempo e sem botões no meio da tela (a faixa do guia fica livre). */
     private fun updateLiveUi() {
-        val live = player?.isCurrentMediaItemLive == true
+        val ch = channels.getOrNull(index)
+        val live = ch?.kind == ContentKind.LIVE || player?.isCurrentMediaItemLive == true
         timeRow?.isVisible = !live
+        b.playerView.findViewById<View>(R.id.centerControls)?.isVisible = !live
+        b.playerView.findViewById<View>(R.id.liveNav)?.isVisible = live
+        b.playerView.findViewById<View>(R.id.btnPrevLive)?.isVisible = channels.size > 1
+        b.playerView.findViewById<View>(R.id.btnNextLive)?.isVisible = channels.size > 1
+        updatePlayLiveIcon()
+    }
+
+    private fun updatePlayLiveIcon() {
+        b.playerView.findViewById<ImageButton>(R.id.btnPlayLive)?.setImageResource(
+            if (player?.playWhenReady == false) R.drawable.ic_pip_play else R.drawable.ic_pip_pause
+        )
     }
 
     private fun updateVideoInfo() {
@@ -540,6 +556,12 @@ class PlayerActivity : AppCompatActivity() {
 
         pv.findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         pv.findViewById<ImageButton>(R.id.btnPrev).setOnClickListener { switchChannel(-1) }
+        pv.findViewById<ImageButton>(R.id.btnPrevLive).setOnClickListener { switchChannel(-1) }
+        pv.findViewById<ImageButton>(R.id.btnNextLive).setOnClickListener { switchChannel(+1) }
+        pv.findViewById<ImageButton>(R.id.btnPlayLive).setOnClickListener {
+            player?.let { it.playWhenReady = !it.playWhenReady }
+            updatePlayLiveIcon()
+        }
         pv.findViewById<ImageButton>(R.id.btnNext).setOnClickListener { switchChannel(+1) }
         pv.findViewById<ImageButton>(R.id.btnQuality).setOnClickListener { showTrackDialog(C.TRACK_TYPE_VIDEO) }
         pv.findViewById<ImageButton>(R.id.btnAudio).setOnClickListener { showTrackDialog(C.TRACK_TYPE_AUDIO) }

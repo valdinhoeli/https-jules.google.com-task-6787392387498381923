@@ -164,8 +164,40 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="end|center_vertical"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
+
+            <!-- ao vivo: anterior / play-pausa / próximo ficam aqui embaixo (o centro fica livre) -->
+            <LinearLayout
+                android:id="@+id/liveNav"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/btnPrevLive"
+                    style="@style/PlayerButton"
+                    android:contentDescription="@string/prev_channel"
+                    android:src="@drawable/ic_skip_previous" />
+
+                <ImageButton
+                    android:id="@+id/btnPlayLive"
+                    style="@style/PlayerButton"
+                    android:contentDescription="@string/pip_play"
+                    android:src="@drawable/ic_pip_pause" />
+
+                <ImageButton
+                    android:id="@+id/btnNextLive"
+                    style="@style/PlayerButton"
+                    android:contentDescription="@string/next_channel"
+                    android:src="@drawable/ic_skip_next" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
 
             <ImageButton
                 android:id="@+id/btnQuality"

@@ -21,7 +21,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.2.3.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.2.4.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -37,6 +37,14 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.2.4 — faixa do programa embaixo**
+- Ao tocar na tela ou apertar OK, a faixa com o programa atual aparece na parte de baixo:
+  logo, número e nome do canal, AO VIVO, programa, horário com barra de progresso,
+  "Restam X min", sinopse e "A seguir"
+- Na troca de canal aparece só a faixa, por ~6 s
+- Canal ao vivo: anterior / play-pausa / próximo ficam na linha de botões de baixo,
+  deixando o centro da tela livre
 
 **1.2.3 — trailer**
 - Botão **Trailer** nos detalhes de filmes e séries, com o trailer informado pelo painel
