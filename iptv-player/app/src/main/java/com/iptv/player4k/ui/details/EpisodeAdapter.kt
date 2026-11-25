@@ -41,7 +41,10 @@ class EpisodeAdapter(
             ).joinToString(" · ")
             tvEpPlot.text = e.plot
             tvEpPlot.visibility = if (e.plot.isNullOrBlank()) View.GONE else View.VISIBLE
-            ivThumb.load(e.image ?: fallbackImage()) { crossfade(true) }
+            val art = com.iptv.player4k.util.CoverArt.channel("${e.season}x${e.number} ${e.title}")
+            val img = e.image ?: fallbackImage()
+            if (img.isNullOrBlank()) ivThumb.setImageDrawable(art)
+            else ivThumb.load(img) { crossfade(true); error(art) }
             val p = progress[e.url]
             pbEp.visibility = if (p != null && p.position > 15_000) View.VISIBLE else View.GONE
             if (p != null) pbEp.progress = (p.fraction * 1000).toInt()

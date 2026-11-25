@@ -86,6 +86,7 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private val rect = RectF()
 
     private val logos = LruCache<String, Bitmap>(160)
+    private val arts = HashMap<String, android.graphics.drawable.Drawable>()
     private val pending = HashSet<String>()
     private val failed = HashSet<String>()
 
@@ -376,12 +377,12 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             if (wide) {
                 canvas.drawText((r + 1).toString(), 10 * dp, top + rowH / 2 + 4 * dp, numPaint)
                 val lx = 38 * dp
-                drawLogo(canvas, ch.logo, lx, top + 10 * dp, 52 * dp, rowH - 20 * dp)
+                drawLogo(canvas, ch, lx, top + 10 * dp, 52 * dp, rowH - 20 * dp)
                 val nx = lx + 60 * dp
                 val name = TextUtils.ellipsize(ch.name, namePaint, chanW - nx - 8 * dp, TextUtils.TruncateAt.END)
                 canvas.drawText(name, 0, name.length, nx, top + rowH / 2 + 5 * dp, namePaint)
             } else {
-                drawLogo(canvas, ch.logo, 8 * dp, top + 6 * dp, chanW - 16 * dp, 30 * dp)
+                drawLogo(canvas, ch, 8 * dp, top + 6 * dp, chanW - 16 * dp, 30 * dp)
                 val name = TextUtils.ellipsize(ch.name, namePaint, chanW - 12 * dp, TextUtils.TruncateAt.END)
                 val w = namePaint.measureText(name, 0, name.length)
                 canvas.drawText(name, 0, name.length, (chanW - w) / 2, top + rowH - 10 * dp, namePaint)
@@ -392,12 +393,15 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         canvas.drawRect(chanW - 1, headerH, chanW, height.toFloat(), fill)
     }
 
-    private fun drawLogo(canvas: Canvas, url: String?, x: Float, y: Float, w: Float, h: Float) {
+    private fun drawLogo(canvas: Canvas, ch: Channel, x: Float, y: Float, w: Float, h: Float) {
+        val url = ch.logo ?: epg?.logo(ch)
         val bmp = logo(url)
         if (bmp == null) {
-            fill.color = 0xFF232B40.toInt()
-            rect.set(x, y, x + w, y + h)
-            canvas.drawRoundRect(rect, 4 * dp, 4 * dp, fill)
+            // sem logo: arte com as iniciais do canal
+            val aw = min(w, h * 1.5f)
+            val art = arts.getOrPut(ch.name) { com.iptv.player4k.util.CoverArt.channel(ch.name) }
+            art.setBounds((x + (w - aw) / 2).toInt(), y.toInt(), (x + (w + aw) / 2).toInt(), (y + h).toInt())
+            art.draw(canvas)
             return
         }
         val scale = min(w / bmp.width, h / bmp.height)

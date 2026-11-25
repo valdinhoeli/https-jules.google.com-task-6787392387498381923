@@ -35,7 +35,7 @@ object M3uParser {
                 line.isEmpty() -> Unit
                 line.startsWith("#EXTM3U", ignoreCase = true) -> {
                     attrRegex.findAll(line).forEach { m ->
-                        if (m.groupValues[1].lowercase() in setOf("url-tvg", "x-tvg-url", "tvg-url")) {
+                        if (m.groupValues[1].lowercase() in setOf("url-tvg", "x-tvg-url", "tvg-url", "url-epg", "epg-url", "x-epg-url")) {
                             m.groupValues[2].split(',').map { it.trim() }
                                 .filter { it.startsWith("http", true) }.forEach { tvgUrls += it }
                         }
@@ -83,6 +83,9 @@ object M3uParser {
                             headers = if (headers.isEmpty()) emptyMap() else HashMap(headers),
                             kind = classify(url, group, name),
                             tvgName = attrs["tvg-name"]?.takeIf { it.isNotBlank() },
+                            age = com.iptv.player4k.security.AgeRating.parse(
+                                attrs["tvg-rating"] ?: attrs["rating"] ?: attrs["parental-rating"] ?: attrs["age"]
+                            ),
                         )
                     }
                     title = null

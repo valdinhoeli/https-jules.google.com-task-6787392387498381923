@@ -125,6 +125,7 @@ class XtreamApi(p: Playlist) {
                     rating = rating(m["rating"]),
                     added = m["added"]?.toLongOrNull() ?: 0L,
                     xtreamId = id.toIntOrNull(),
+                    age = ageOf(m["age"] ?: m["mpaa_rating"] ?: m["rating_mpaa"] ?: m["certification"]),
                 )
             }
             return out
@@ -148,10 +149,13 @@ class XtreamApi(p: Playlist) {
                     plot = m["plot"]?.takeIf { it.isNotBlank() },
                     genre = m["genre"]?.takeIf { it.isNotBlank() },
                     backdrop = m["backdrop_path"]?.takeIf { it.startsWith("http") },
+                    age = ageOf(m["age"] ?: m["mpaa_rating"] ?: m["rating_mpaa"] ?: m["certification"]),
                 )
             }
             return out
         }
+
+        private fun ageOf(s: String?): Int? = com.iptv.player4k.security.AgeRating.parse(s)
 
         private fun rating(s: String?): Float? = s?.replace(',', '.')?.toFloatOrNull()?.takeIf { it > 0f }
 
@@ -192,6 +196,7 @@ class XtreamApi(p: Playlist) {
                 durationSecs = durationSecs(info),
                 backdrop = info?.get("backdrop_path").str()?.takeIf { it.startsWith("http") },
                 poster = (info?.get("movie_image").str() ?: info?.get("cover_big").str())?.takeIf { it.startsWith("http") },
+                age = ageOf(info?.get("age").str() ?: info?.get("mpaa_rating").str() ?: info?.get("rating_mpaa").str() ?: info?.get("certification").str()),
             )
         }
 
@@ -238,6 +243,7 @@ class XtreamApi(p: Playlist) {
                 backdrop = info?.get("backdrop_path").str()?.takeIf { it.startsWith("http") },
                 poster = info?.get("cover").str()?.takeIf { it.startsWith("http") },
                 episodes = episodes,
+                age = ageOf(info?.get("age").str() ?: info?.get("mpaa_rating").str() ?: info?.get("rating_mpaa").str() ?: info?.get("certification").str()),
             )
         }
     }

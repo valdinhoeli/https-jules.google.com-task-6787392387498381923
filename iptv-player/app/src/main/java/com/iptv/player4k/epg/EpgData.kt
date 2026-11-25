@@ -18,6 +18,8 @@ class EpgData(
     /** nome normalizado -> id XMLTV */
     internal val nameIndex: Map<String, String>,
     val updatedAt: Long,
+    /** id XMLTV -> logo do canal (<icon src>) */
+    internal val icons: Map<String, String> = emptyMap(),
 ) {
     private val resolved = ConcurrentHashMap<String, List<Programme>>()
 
@@ -27,14 +29,20 @@ class EpgData(
     fun programmes(ch: Channel): List<Programme> =
         resolved.getOrPut(ch.url) { resolve(ch) }
 
-    private fun resolve(ch: Channel): List<Programme> {
-        ch.tvgId?.lowercase()?.let { byId[it] }?.let { return it }
+    private fun resolve(ch: Channel): List<Programme> =
+        idFor(ch)?.let { byId[it] } ?: emptyList()
+
+    private fun idFor(ch: Channel): String? {
+        ch.tvgId?.lowercase()?.let { if (it in byId || it in icons) return it }
         for (n in listOfNotNull(ch.tvgId, ch.tvgName, ch.name)) {
             val id = nameIndex[nameKey(n)] ?: continue
-            byId[id]?.let { return it }
+            return id
         }
-        return emptyList()
+        return null
     }
+
+    /** Logo do canal vindo do guia, para canais sem tvg-logo. */
+    fun logo(ch: Channel): String? = idFor(ch)?.let { icons[it] }
 
     fun now(ch: Channel, t: Long = System.currentTimeMillis()): Programme? =
         programmes(ch).let { at(it, t)?.let { i -> it[i] } }

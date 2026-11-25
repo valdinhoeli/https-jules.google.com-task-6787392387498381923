@@ -188,6 +188,12 @@
                 android:src="@drawable/ic_aspect" />
 
             <ImageButton
+                android:id="@+id/btnMulti"
+                style="@style/PlayerButton"
+                android:contentDescription="@string/action_multiview"
+                android:src="@drawable/ic_grid" />
+
+            <ImageButton
                 android:id="@+id/btnPip"
                 style="@style/PlayerButton"
                 android:contentDescription="@string/pip"

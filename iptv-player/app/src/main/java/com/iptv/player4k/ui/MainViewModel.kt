@@ -14,6 +14,8 @@ import com.iptv.player4k.data.PlaylistStore
 import com.iptv.player4k.data.Session
 import com.iptv.player4k.epg.EpgData
 import com.iptv.player4k.epg.EpgRepository
+import com.iptv.player4k.security.ParentalRules
+import com.iptv.player4k.security.ParentalSession
 import com.iptv.player4k.util.Text
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -83,6 +85,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var currentTab = 0
 
     private var all: List<Channel> = emptyList()
+    /** todos os canais ao vivo (sem filtro dos pais) */
+    private var liveAll: List<Channel> = emptyList()
+    /** canais ao vivo visíveis com as regras do controle dos pais */
     private var live: List<Channel> = emptyList()
     private var byUrl: Map<String, Channel> = emptyMap()
     private var loadJob: Job? = null
@@ -130,7 +135,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun clearData() {
-        all = emptyList(); live = emptyList(); byUrl = emptyMap(); loadedId = null
+        all = emptyList(); liveAll = emptyList(); live = emptyList(); byUrl = emptyMap(); loadedId = null
         libJob?.cancel(); epgJob?.cancel()
         _library.value = LibraryState()
         _epg.value = EpgState()
@@ -151,8 +156,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val result = repo.load(p, forceRefresh)
                 val saved = if (forceRefresh) p.copy(updatedAt = System.currentTimeMillis()).also { store.save(it) } else p
                 all = result.channels
-                live = all.filter { it.kind == ContentKind.LIVE }
-                byUrl = live.associateBy { it.url }
+                liveAll = all.filter { it.kind == ContentKind.LIVE }
+                applyParental()
                 loadedId = p.id
                 _state.update { it.copy(loading = false, error = null, totalCount = live.size, allCount = all.size) }
                 rebuild()
@@ -177,6 +182,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val lib = libraryRepo.load(p, channels, force)
                 Session.library = lib
                 _library.value = LibraryState(loading = false, library = lib)
+                applyParental()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -188,7 +194,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun loadEpg(p: Playlist, tvgUrls: List<String>, force: Boolean) {
         epgJob?.cancel()
         _epg.update { it.copy(loading = true, error = null, noSource = false) }
-        val channels = live
+        val channels = liveAll
         epgJob = viewModelScope.launch {
             try {
                 val data = epgRepo.load(p, tvgUrls, channels, force)
@@ -230,6 +236,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun contentChanged() {
         _contentVersion.value++
+    }
+
+    /** Regras atuais (desligadas sem PIN ou quando desbloqueado pelo PIN). */
+    fun rules(): ParentalRules {
+        if (!store.hasPin || ParentalSession.isUnlocked) return ParentalRules.OPEN
+        val pid = state.value.playlist?.id.orEmpty()
+        return ParentalRules(true, store.maxAge, store.autoLockAdult, store.lockedGroups(pid))
+    }
+
+    private fun applyParental() {
+        val r = rules()
+        live = liveAll.filter { !r.isBlocked(it.age, it.group) }
+        byUrl = live.associateBy { it.url }
+        Session.live = live
+        Session.allGroups = (liveAll.map { it.group } + all.filter { it.kind != ContentKind.LIVE }.map { it.group } +
+            _library.value.library.movieCategories + _library.value.library.seriesCategories).distinct()
+        _state.update { it.copy(totalCount = live.size) }
+    }
+
+    /** Chamado após PIN/configurações dos pais mudarem. */
+    fun parentalChanged() {
+        applyParental()
+        rebuild()
+        contentChanged()
     }
 
     fun addRecent(ch: Channel) {

@@ -9,6 +9,7 @@ object XmltvParser {
         val byId = HashMap<String, ArrayList<Programme>>()
         val nameIndex = HashMap<String, String>()
         val keptIds = HashSet<String>()
+        val icons = HashMap<String, String>()
 
         fun build(updatedAt: Long): EpgData {
             val clean = HashMap<String, List<Programme>>(byId.size)
@@ -22,7 +23,7 @@ object XmltvParser {
                 }
                 if (out.isNotEmpty()) clean[id] = out
             }
-            return EpgData(clean, nameIndex.filterValues { it in clean }, updatedAt)
+            return EpgData(clean, nameIndex.filterValues { it in clean || it in icons }, updatedAt, icons)
         }
     }
 
@@ -50,18 +51,22 @@ object XmltvParser {
         val id = xpp.getAttributeValue(null, "id")?.trim()?.lowercase()
         val depth = xpp.depth
         val names = ArrayList<String>(2)
+        var icon: String? = null
         while (true) {
             val ev = xpp.next()
             if (ev == XmlPullParser.END_DOCUMENT) break
             if (ev == XmlPullParser.END_TAG && xpp.depth == depth) break
             if (ev == XmlPullParser.START_TAG && xpp.name == "display-name") {
                 names += xpp.nextText().trim()
+            } else if (ev == XmlPullParser.START_TAG && xpp.name == "icon" && icon == null) {
+                icon = xpp.getAttributeValue(null, "src")?.trim()?.takeIf { it.startsWith("http") }
             }
         }
         if (id.isNullOrEmpty()) return
         val keys = names.map { EpgData.nameKey(it) }.filter { it.isNotEmpty() }
         if (id in wantIds || keys.any { it in wantNames }) {
             b.keptIds += id
+            icon?.let { b.icons[id] = it }
             // Map.putIfAbsent exige API 24
             (keys + EpgData.nameKey(id)).forEach { k -> if (k !in b.nameIndex) b.nameIndex[k] = id }
         }

@@ -7,6 +7,8 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.dispose
 import coil.load
 import com.iptv.player4k.databinding.ItemPosterBinding
+import com.iptv.player4k.util.AgeBadge
+import com.iptv.player4k.util.CoverArt
 import com.iptv.player4k.util.Fmt
 
 class PosterAdapter(
@@ -50,11 +52,18 @@ class PosterAdapter(
             val p = item.progress
             pbWatched.visibility = if (p != null) View.VISIBLE else View.GONE
             if (p != null) pbWatched.progress = (p * 1000).toInt().coerceAtLeast(30)
+            tvPlaceholder.visibility = View.GONE
+            AgeBadge.bind(tvAge, item.age)
+            val cover = CoverArt.cover(root.context, item.title, item.series != null)
             if (item.poster.isNullOrBlank()) {
                 ivPoster.dispose()
-                ivPoster.setImageDrawable(null)
+                ivPoster.setImageDrawable(cover)
             } else {
-                ivPoster.load(item.poster) { crossfade(true) }
+                ivPoster.load(item.poster) {
+                    crossfade(true)
+                    placeholder(cover)
+                    error(cover)
+                }
             }
             root.setOnClickListener { onClick(item) }
             card.clipToOutline = true

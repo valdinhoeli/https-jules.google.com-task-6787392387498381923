@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Muitas listas IPTV usam HTTP puro: liberamos tráfego em texto claro. -->
+<!--
+  Muitas listas IPTV usam HTTP puro: o tráfego em texto claro continua liberado.
+  Só certificados do sistema são aceitos (certificados instalados pelo usuário não),
+  o que impede interceptar o tráfego HTTPS do app com proxies de inspeção.
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

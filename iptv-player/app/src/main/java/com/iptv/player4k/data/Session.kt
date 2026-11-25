@@ -7,4 +7,8 @@ object Session {
     @Volatile var playlist: Playlist? = null
     @Volatile var library: Library = Library.EMPTY
     @Volatile var epg: EpgData? = null
+    /** canais ao vivo visíveis (respeitando o controle dos pais) */
+    @Volatile var live: List<Channel> = emptyList()
+    /** todos os grupos/categorias da lista (para a tela de bloqueio) */
+    @Volatile var allGroups: List<String> = emptyList()
 }

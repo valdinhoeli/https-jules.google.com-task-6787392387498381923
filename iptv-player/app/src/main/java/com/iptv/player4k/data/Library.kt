@@ -16,6 +16,7 @@ class VodItem(
     val headers: Map<String, String> = emptyMap(),
     val plot: String? = null,
     val backdrop: String? = null,
+    val age: Int? = null,
 ) {
     val searchKey = Text.normalize(name)
 }
@@ -46,6 +47,7 @@ class SeriesItem(
     val backdrop: String? = null,
     /** Episódios já conhecidos (listas M3U). No Xtream vêm sob demanda. */
     val episodes: List<Episode> = emptyList(),
+    val age: Int? = null,
 ) {
     val searchKey = Text.normalize(name)
 }
@@ -62,6 +64,7 @@ class MediaDetails(
     val backdrop: String? = null,
     val poster: String? = null,
     val episodes: List<Episode> = emptyList(),
+    val age: Int? = null,
 )
 
 class Library(
@@ -118,7 +121,7 @@ object LibraryBuilder {
                 val (title, year) = splitYear(ch.name)
                 movies += VodItem(
                     id = "m3u:${ch.url}", name = title, url = ch.url, poster = ch.logo,
-                    category = ch.group, year = year, headers = ch.headers,
+                    category = ch.group, year = year, headers = ch.headers, age = ch.age,
                 )
                 movieCats += ch.group
             }
@@ -150,7 +153,7 @@ object LibraryBuilder {
             }.sortedWith(compareBy({ it.season }, { it.number }))
             SeriesItem(
                 id = "m3u:$key", name = title, poster = first.logo,
-                category = first.group, year = year, episodes = eps,
+                category = first.group, year = year, episodes = eps, age = first.age,
             )
         }
         return Library(movies, movieCats.toList(), series, seriesCats.toList())

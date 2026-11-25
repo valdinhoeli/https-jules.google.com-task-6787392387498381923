@@ -33,6 +33,23 @@ data class Playlist(
         PlaylistType.URL -> url.trim()
     }
 
+    /**
+     * Lista M3U que na verdade é de um painel Xtream (".../get.php?username=X&password=Y"):
+     * o guia fica em ".../xmltv.php" com o mesmo usuário e senha.
+     */
+    fun derivedXmltvUrl(): String? {
+        if (type == PlaylistType.XTREAM) return null
+        val u = runCatching { java.net.URI(url.trim()) }.getOrNull() ?: return null
+        if (u.scheme == null || u.host == null) return null
+        if (!(u.rawPath ?: "").endsWith("get.php")) return null
+        val q = (u.rawQuery ?: "").split('&').associate { it.substringBefore('=') to it.substringAfter('=', "") }
+        val user = q["username"]?.takeIf { it.isNotEmpty() } ?: return null
+        val pass = q["password"]?.takeIf { it.isNotEmpty() } ?: return null
+        val port = if (u.port > 0) ":${u.port}" else ""
+        val dir = u.rawPath.substringBeforeLast('/')
+        return "${u.scheme}://${u.host}$port$dir/xmltv.php?username=$user&password=$pass"
+    }
+
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("name", name).put("type", type.name)
         .put("url", url).put("server", server).put("username", username)

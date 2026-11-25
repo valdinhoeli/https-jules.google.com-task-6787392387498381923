@@ -90,8 +90,10 @@ class EpgFragment : Fragment(R.layout.fragment_epg) {
         val b = b ?: return
         selected = ch to p
         val now = System.currentTimeMillis()
-        if (ch.logo.isNullOrBlank()) b.ivEpgLogo.setImageResource(R.drawable.ic_channel_placeholder)
-        else b.ivEpgLogo.load(ch.logo) { error(R.drawable.ic_channel_placeholder) }
+        val logo = ch.logo ?: vm.epg.value.data?.logo(ch)
+        val art = com.iptv.player4k.util.CoverArt.channel(ch.name)
+        if (logo.isNullOrBlank()) b.ivEpgLogo.setImageDrawable(art)
+        else b.ivEpgLogo.load(logo) { error(art) }
         b.tvEpgChannel.text = ch.name
         if (p == null) {
             b.tvEpgBadge.isVisible = false

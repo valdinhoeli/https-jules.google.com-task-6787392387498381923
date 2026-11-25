@@ -91,7 +91,7 @@ class VodHomeAdapter(
                 // não troca o destaque enquanto o usuário está nos botões
                 if (r.items.size > 1 && !b.btnHeroPlay.hasFocus() && !b.btnHeroInfo.hasFocus()) {
                     index = (index + 1) % r.items.size
-                    show(r.items[index], r.newest)
+                    show(r.items[index], r.newest, r.badges.getOrNull(index))
                 }
                 handler.postDelayed(this, ROTATE_MS)
             }
@@ -100,7 +100,7 @@ class VodHomeAdapter(
         fun bind(r: HomeRow.Hero) {
             row = r
             index = 0
-            r.items.firstOrNull()?.let { show(it, r.newest) }
+            r.items.firstOrNull()?.let { show(it, r.newest, r.badges.firstOrNull()) }
             start()
         }
 
@@ -111,11 +111,16 @@ class VodHomeAdapter(
 
         fun stop() = handler.removeCallbacks(rotate)
 
-        private fun show(item: PosterItem, newest: Boolean) {
+        private fun show(item: PosterItem, newest: Boolean, badge: String?) {
             val ctx = b.root.context
-            b.tvHeroBadge.setText(if (newest) R.string.hero_new else R.string.hero_featured)
+            if (badge != null) b.tvHeroBadge.text = badge
+            else b.tvHeroBadge.setText(if (newest) R.string.hero_new else R.string.hero_featured)
+            b.tvHeroBadge.setBackgroundResource(
+                if (badge == ctx.getString(R.string.tip_of_day)) R.drawable.bg_tip_pill else R.drawable.bg_live_pill
+            )
             b.tvHeroTitle.text = item.title
             b.tvHeroMeta.text = listOfNotNull(
+                item.age?.let { com.iptv.player4k.security.AgeRating.label(it).let { l -> if (l == "L") "Livre" else "$l+" } },
                 item.year, Fmt.rating(item.rating), item.category.takeIf { it.isNotBlank() },
                 if (item.series != null) ctx.getString(R.string.kind_series).lowercase()
                     .replaceFirstChar { it.uppercase() } else null,
@@ -130,7 +135,9 @@ class VodHomeAdapter(
                     if (item.backdrop == null) RenderEffect.createBlurEffect(40f, 40f, Shader.TileMode.CLAMP) else null
                 )
             }
-            b.ivHeroPoster.load(item.poster) { crossfade(500) }
+            val cover = com.iptv.player4k.util.CoverArt.cover(ctx, item.title, item.series != null)
+            if (item.poster.isNullOrBlank()) b.ivHeroPoster.setImageDrawable(cover)
+            else b.ivHeroPoster.load(item.poster) { crossfade(500); error(cover) }
             b.btnHeroPlay.setOnClickListener { onPlay(item) }
             b.btnHeroInfo.setOnClickListener { onOpen(item) }
             b.ivHeroPoster.setOnClickListener { onOpen(item) }

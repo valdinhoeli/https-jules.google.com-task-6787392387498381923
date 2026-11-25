@@ -132,6 +132,7 @@ class PlayerActivity : AppCompatActivity() {
             .coerceIn(0, channels.lastIndex)
 
         hideSystemUi()
+        com.iptv.player4k.ui.SecureScreen.apply(this)
         setupControls()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -166,6 +167,12 @@ class PlayerActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         releasePlayer()
+    }
+
+    override fun onDestroy() {
+        if (pipReceiverOn) runCatching { unregisterReceiver(pipReceiver) }
+        pipReceiverOn = false
+        super.onDestroy()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -245,7 +252,7 @@ class PlayerActivity : AppCompatActivity() {
         handler.removeCallbacks(nextEpisode)
         retryCount = 0
         mimeAttempt = 0
-        mimeCandidates = candidatesFor(ch.url)
+        mimeCandidates = StreamFactory.candidatesFor(ch.url)
         hideError()
         b.tvStatus.isVisible = false
 
@@ -262,6 +269,7 @@ class PlayerActivity : AppCompatActivity() {
 
         if (ch.kind == ContentKind.LIVE) PlaybackQueue.playlist?.let { store.addRecent(it.id, ch.url) }
         val single = channels.size <= 1
+        b.playerView.findViewById<View>(R.id.btnMulti)?.isVisible = ch.kind == ContentKind.LIVE
         b.playerView.findViewById<View>(R.id.btnPrev)?.isVisible = !single
         b.playerView.findViewById<View>(R.id.btnNext)?.isVisible = !single
         bindEpg(ch)
@@ -328,58 +336,9 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun startMedia(ch: Channel) {
         val p = player ?: return
-        val mime = mimeCandidates.getOrNull(mimeAttempt)
-
-        val headers = HashMap(ch.headers)
-        val ua = headers.remove("User-Agent")
-            ?: PlaybackQueue.playlist?.userAgent?.takeIf { it.isNotBlank() }
-            ?: Http.DEFAULT_USER_AGENT
-
-        val http = OkHttpDataSource.Factory(Http.client)
-            .setUserAgent(ua)
-            .setDefaultRequestProperties(headers)
-        val dataSource = DefaultDataSource.Factory(this, http)
-
-        val extractors = DefaultExtractorsFactory()
-            .setTsExtractorFlags(
-                DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
-                    DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
-            )
-            .setConstantBitrateSeekingEnabled(true)
-
-        val item = MediaItem.Builder()
-            .setUri(ch.url)
-            .setMimeType(mime)
-            .setMediaMetadata(MediaMetadata.Builder().setTitle(ch.name).build())
-            .setLiveConfiguration(
-                MediaItem.LiveConfiguration.Builder().setMaxPlaybackSpeed(1.02f).build()
-            )
-            .build()
-
-        val source = DefaultMediaSourceFactory(dataSource, extractors)
-            .setLoadErrorHandlingPolicy(IptvLoadErrorPolicy())
-            .createMediaSource(item)
-
-        p.setMediaSource(source)
+        p.setMediaSource(StreamFactory.create(this, ch, mimeCandidates.getOrNull(mimeAttempt)))
         p.prepare()
         p.playWhenReady = true
-    }
-
-    /** Ordem de tentativas do tipo de stream, conforme a URL. */
-    private fun candidatesFor(url: String): List<String?> {
-        val lower = url.lowercase(Locale.ROOT)
-        val path = lower.substringBefore('?')
-        return when {
-            lower.startsWith("rtsp://") -> listOf(MimeTypes.APPLICATION_RTSP)
-            path.endsWith(".m3u8") || path.endsWith(".m3u") || "m3u8" in lower ->
-                listOf(MimeTypes.APPLICATION_M3U8, null)
-            path.endsWith(".mpd") || "format=mpd" in lower -> listOf(MimeTypes.APPLICATION_MPD, null)
-            path.contains(".ism") -> listOf(MimeTypes.APPLICATION_SS, null)
-            path.endsWith(".ts") || path.endsWith(".mp4") || path.endsWith(".mkv") ||
-                path.endsWith(".avi") || path.endsWith(".mov") -> listOf(null, MimeTypes.APPLICATION_M3U8)
-            // sem extensão: tenta detectar o container; se falhar, tenta HLS
-            else -> listOf(null, MimeTypes.APPLICATION_M3U8)
-        }
     }
 
     private val listener = object : Player.Listener {
@@ -418,6 +377,13 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         override fun onPlayerError(error: PlaybackException) = handleError(error)
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            // atualiza o ícone play/pausa da janela PiP
+            if (Build.VERSION.SDK_INT >= 26 && isInPictureInPictureMode) {
+                runCatching { setPictureInPictureParams(pipParams()) }
+            }
+        }
     }
 
     private fun handleError(error: PlaybackException) {
@@ -543,6 +509,14 @@ class PlayerActivity : AppCompatActivity() {
         pv.findViewById<ImageButton>(R.id.btnAudio).setOnClickListener { showTrackDialog(C.TRACK_TYPE_AUDIO) }
         pv.findViewById<ImageButton>(R.id.btnSubtitle).setOnClickListener { showTrackDialog(C.TRACK_TYPE_TEXT) }
         pv.findViewById<ImageButton>(R.id.btnAspect).setOnClickListener { cycleResize() }
+        pv.findViewById<ImageButton>(R.id.btnMulti).setOnClickListener {
+            val ch = channels.getOrNull(index) ?: return@setOnClickListener
+            startActivity(
+                Intent(this, com.iptv.player4k.ui.multiview.MultiViewActivity::class.java)
+                    .putExtra(com.iptv.player4k.ui.multiview.MultiViewActivity.EXTRA_URL, ch.url)
+            )
+            finish()
+        }
         pv.findViewById<ImageButton>(R.id.btnPip).apply {
             isVisible = canPip()
             setOnClickListener { enterPip() }
@@ -568,8 +542,10 @@ class PlayerActivity : AppCompatActivity() {
     private fun showOsd(ch: Channel) {
         b.tvOsdTitle.text = if (ch.kind == ContentKind.LIVE) "${index + 1}  ${ch.name}" else ch.name
         b.tvOsdInfo.text = ch.group
-        if (ch.logo.isNullOrBlank()) b.ivOsdLogo.setImageResource(R.drawable.ic_channel_placeholder)
-        else b.ivOsdLogo.load(ch.logo) { error(R.drawable.ic_channel_placeholder) }
+        val logo = ch.logo ?: Session.epg?.logo(ch)
+        val art = com.iptv.player4k.util.CoverArt.channel(ch.name)
+        if (logo.isNullOrBlank()) b.ivOsdLogo.setImageDrawable(art)
+        else b.ivOsdLogo.load(logo) { error(art) }
         b.osd.isVisible = true
         handler.removeCallbacks(hideOsd)
         handler.postDelayed(hideOsd, if (b.osdEpg.isVisible) 6_000 else 4_000)
@@ -709,8 +685,37 @@ class PlayerActivity : AppCompatActivity() {
         val v = ratio.toFloat()
         if (v > 2.39f) ratio = Rational(239, 100)
         if (v < 0.42f) ratio = Rational(42, 100)
-        return PictureInPictureParams.Builder().setAspectRatio(ratio).build()
+        return PictureInPictureParams.Builder().setAspectRatio(ratio).setActions(pipActions()).build()
     }
+
+    /** Botões dentro da janela PiP: canal anterior, play/pausa, próximo canal. */
+    @RequiresApi(26)
+    private fun pipActions(): List<android.app.RemoteAction> {
+        fun action(icon: Int, title: Int, cmd: Int) = android.app.RemoteAction(
+            android.graphics.drawable.Icon.createWithResource(this, icon), getString(title), getString(title),
+            android.app.PendingIntent.getBroadcast(
+                this, cmd, Intent(PIP_ACTION).setPackage(packageName).putExtra("cmd", cmd),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            ),
+        )
+        val playing = player?.isPlaying == true
+        val play = action(if (playing) R.drawable.ic_pip_pause else R.drawable.ic_pip_play, R.string.pip_play, 2)
+        return if (channels.size > 1) listOf(
+            action(R.drawable.ic_pip_prev, R.string.pip_prev, 1), play, action(R.drawable.ic_pip_next, R.string.pip_next, 3),
+        ) else listOf(play)
+    }
+
+    private val pipReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            when (intent?.getIntExtra("cmd", 0)) {
+                1 -> switchChannel(-1)
+                2 -> player?.let { it.playWhenReady = !it.playWhenReady }
+                3 -> switchChannel(+1)
+            }
+            if (Build.VERSION.SDK_INT >= 26) runCatching { setPictureInPictureParams(pipParams()) }
+        }
+    }
+    private var pipReceiverOn = false
 
     private fun enterPip() {
         if (!canPip() || Build.VERSION.SDK_INT < 26) return
@@ -728,6 +733,16 @@ class PlayerActivity : AppCompatActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         b.playerView.useController = !isInPictureInPictureMode
+        if (isInPictureInPictureMode && !pipReceiverOn) {
+            androidx.core.content.ContextCompat.registerReceiver(
+                this, pipReceiver, android.content.IntentFilter(PIP_ACTION),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            pipReceiverOn = true
+        } else if (!isInPictureInPictureMode && pipReceiverOn) {
+            runCatching { unregisterReceiver(pipReceiver) }
+            pipReceiverOn = false
+        }
         if (isInPictureInPictureMode) {
             b.osd.isVisible = false
             b.playerView.hideController()
@@ -760,20 +775,9 @@ class PlayerActivity : AppCompatActivity() {
         window.attributes = window.attributes.also { it.preferredDisplayModeId = best.modeId }
     }
 
-    /** Não repete requisições que falharam com 4xx (canal inexistente/bloqueado). */
-    @OptIn(UnstableApi::class)
-    private class IptvLoadErrorPolicy : DefaultLoadErrorHandlingPolicy(3) {
-        override fun getRetryDelayMsFor(info: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
-            val e = info.exception
-            if (e is HttpDataSource.InvalidResponseCodeException && e.responseCode in 400..499) {
-                return C.TIME_UNSET
-            }
-            return super.getRetryDelayMsFor(info)
-        }
-    }
-
     companion object {
         const val EXTRA_INDEX = "index"
+        private const val PIP_ACTION = "com.iptv.player4k.PIP_CONTROL"
         private const val MAX_RETRIES = 4
     }
 }

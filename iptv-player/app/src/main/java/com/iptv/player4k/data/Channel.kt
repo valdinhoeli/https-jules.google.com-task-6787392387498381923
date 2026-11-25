@@ -17,6 +17,8 @@ class Channel(
     val tvgName: String? = null,
     /** Para filmes/séries: id do item (progresso e "continuar assistindo"). */
     val refId: String? = null,
+    /** Classificação indicativa (idade), quando a lista informa. */
+    val age: Int? = null,
 ) {
     val searchKey: String = Text.normalize(name)
     val qualityTag: QualityTag? = QualityTag.fromName(name)

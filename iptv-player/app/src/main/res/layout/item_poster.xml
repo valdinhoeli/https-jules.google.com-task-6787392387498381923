@@ -48,6 +48,20 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
+        <TextView
+            android:id="@+id/tvAge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:minWidth="22dp"
+            android:gravity="center"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="1dp"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <ProgressBar
             android:id="@+id/pbWatched"
             style="?android:attr/progressBarStyleHorizontal"

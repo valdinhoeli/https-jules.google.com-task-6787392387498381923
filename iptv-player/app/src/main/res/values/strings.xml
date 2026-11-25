@@ -156,4 +156,78 @@
     <string name="field_epg">URL do guia (EPG) — opcional</string>
     <string name="epg_helper">XMLTV (.xml ou .xml.gz). Vazio: usa o guia da lista/Xtream</string>
     <string name="today">Hoje</string>
+
+    <!-- v1.2 -->
+    <string name="group_home">Início</string>
+    <string name="tip_of_day">DICA DO DIA</string>
+    <string name="row_recommended">Recomendados para você</string>
+    <string name="row_because">Porque você assistiu %s</string>
+    <string name="group_items_count">%1$s · %2$d títulos</string>
+
+    <!-- Configurações -->
+    <string name="sec_playback">REPRODUÇÃO</string>
+    <string name="sec_parental">CONTROLE DOS PAIS</string>
+    <string name="sec_security">SEGURANÇA E REDE</string>
+    <string name="sec_device">APARELHO</string>
+    <string name="set_force_max_sum">Ignora a internet e usa sempre a maior resolução</string>
+    <string name="set_large_buffer_sum">Mais tempo de vídeo guardado: menos travadas</string>
+    <string name="set_match_display_sum">Para TVs 4K que mostram o menu em Full HD</string>
+    <string name="set_pip_sum">Continua o vídeo numa janela ao sair do app</string>
+    <string name="par_create_pin">Criar PIN</string>
+    <string name="par_create_pin_sum">Ativa o controle dos pais (4 a 8 números)</string>
+    <string name="par_change_pin">Alterar PIN</string>
+    <string name="par_change_pin_sum">O controle dos pais está ativo</string>
+    <string name="par_remove_pin">Remover PIN</string>
+    <string name="par_remove_pin_sum">Desativa o controle dos pais</string>
+    <string name="par_max_age">Classificação máxima</string>
+    <string name="par_no_limit">Sem limite</string>
+    <string name="par_up_to">Até %s</string>
+    <string name="par_adult">Bloquear categorias adultas</string>
+    <string name="par_adult_sum">Detecta automaticamente grupos como \"Adultos\", \"XXX\", \"+18\"</string>
+    <string name="par_groups">Grupos bloqueados</string>
+    <plurals name="par_groups_sum">
+        <item quantity="one">%d grupo bloqueado</item>
+        <item quantity="other">%d grupos bloqueados</item>
+    </plurals>
+    <string name="par_protect_lists">Proteger listas com PIN</string>
+    <string name="par_protect_lists_sum">Pede o PIN para trocar, adicionar, editar ou excluir listas (servidor, usuário e senha)</string>
+    <string name="par_pin_saved">PIN salvo</string>
+    <string name="par_pin_removed">Controle dos pais desativado</string>
+    <string name="sec_dns">DNS seguro (DNS-over-HTTPS)</string>
+    <string name="sec_dns_info">Evita bloqueios e espionagem feitos pelo DNS da operadora. Não é uma VPN: não esconde o tráfego nem o endereço do servidor.</string>
+    <string name="sec_dns_applied">DNS aplicado</string>
+    <string name="sec_screenshot">Bloquear capturas de tela</string>
+    <string name="sec_screenshot_sum">Impede prints e gravação de tela do app</string>
+    <string name="sec_encryption">Dados criptografados</string>
+    <string name="sec_encryption_sum">Listas, servidor, usuário, senha, favoritos e histórico ficam cifrados com uma chave do Android Keystore. Backup e cópia para outro aparelho desativados.</string>
+    <string name="device_sum">Verifica se o aparelho reproduz 4K e HDR</string>
+
+    <!-- PIN -->
+    <string name="pin_title">Digite o PIN</string>
+    <string name="pin_hint">PIN</string>
+    <string name="pin_required">Esta ação está protegida pelo controle dos pais.</string>
+    <string name="pin_unlock_msg">Digite o PIN para mostrar o conteúdo bloqueado.</string>
+    <string name="pin_wrong">PIN incorreto</string>
+    <string name="pin_create_title">Criar PIN</string>
+    <string name="pin_create_hint">Escolha um PIN de 4 a 8 números.</string>
+    <string name="pin_confirm_hint">Digite o PIN novamente para confirmar.</string>
+    <string name="pin_invalid">Use de 4 a 8 números</string>
+    <string name="pin_mismatch">Os PINs não conferem. Tente de novo.</string>
+    <string name="action_unlock">Desbloquear conteúdo (PIN)</string>
+    <string name="action_relock">Bloquear conteúdo novamente</string>
+    <string name="unlocked">Conteúdo desbloqueado por 30 minutos</string>
+    <string name="relocked">Controle dos pais reativado</string>
+    <string name="action_multiview">Multi-tela</string>
+
+    <!-- Multi-tela -->
+    <string name="mv_pick">Escolher canal</string>
+    <string name="mv_two">2 telas</string>
+    <string name="mv_four">4 telas</string>
+    <string name="mv_close">Sair</string>
+    <string name="mv_help">OK: áudio deste quadro · OK de novo: tela cheia · Segurar/MENU: trocar canal</string>
+    <string name="mv_choose_title">Canal para o quadro %d</string>
+    <string name="mv_no_channels">Nenhum canal ao vivo disponível</string>
+    <string name="pip_prev">Canal anterior</string>
+    <string name="pip_next">Próximo canal</string>
+    <string name="pip_play">Reproduzir/pausar</string>
 </resources>

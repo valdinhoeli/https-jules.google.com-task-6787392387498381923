@@ -47,6 +47,7 @@ class DetailsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         b = ActivityDetailsBinding.inflate(layoutInflater)
         setContentView(b.root)
+        com.iptv.player4k.ui.SecureScreen.apply(this)
         store = PlaylistStore(this)
         repo = LibraryRepository(this)
 
@@ -112,7 +113,13 @@ class DetailsActivity : AppCompatActivity() {
         ).joinToString("\n")
         b.tvCredits.isVisible = !b.tvCredits.text.isNullOrBlank()
 
-        b.ivPoster.load(d?.poster ?: poster) { crossfade(true) }
+        val cover = com.iptv.player4k.util.CoverArt.cover(this, title, m == null)
+        val posterUrl = d?.poster ?: poster
+        if (posterUrl.isNullOrBlank()) b.ivPoster.setImageDrawable(cover)
+        else b.ivPoster.load(posterUrl) { crossfade(true); error(cover) }
+        val age = d?.age ?: m?.age ?: s?.age
+            ?: if (com.iptv.player4k.security.AgeRating.isAdult(m?.category ?: s?.category)) 18 else null
+        com.iptv.player4k.util.AgeBadge.bind(b.tvAge, age)
         b.ivBackdrop.load(backdrop ?: d?.poster ?: poster) { crossfade(true) }
         if (Build.VERSION.SDK_INT >= 31) {
             b.ivBackdrop.setRenderEffect(

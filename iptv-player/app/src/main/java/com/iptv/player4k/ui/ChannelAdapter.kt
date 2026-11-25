@@ -17,6 +17,7 @@ import com.iptv.player4k.data.Channel
 import com.iptv.player4k.data.QualityTag
 import com.iptv.player4k.databinding.ItemChannelBinding
 import com.iptv.player4k.epg.EpgData
+import com.iptv.player4k.util.CoverArt
 import com.iptv.player4k.util.Fmt
 
 class ChannelAdapter(
@@ -39,7 +40,7 @@ class ChannelAdapter(
     fun setEpg(data: EpgData?) {
         if (data === epg) return
         epg = data
-        notifyItemRangeChanged(0, itemCount, PAYLOAD_EPG)
+        notifyDataSetChanged() // logos do guia podem preencher canais sem logo
     }
 
     /** Atualiza só as linhas do guia (barra de progresso e "agora"). */
@@ -75,13 +76,16 @@ class ChannelAdapter(
                     ?.setStroke((1.5f * root.resources.displayMetrics.density).toInt(), color)
             }
 
-            if (ch.logo.isNullOrBlank()) {
+            // logo da lista → logo do guia (XMLTV) → arte gerada com as iniciais
+            val logo = ch.logo ?: epg?.logo(ch)
+            val fallback = CoverArt.channel(ch.name)
+            if (logo.isNullOrBlank()) {
                 ivLogo.dispose()
-                ivLogo.setImageResource(R.drawable.ic_channel_placeholder)
+                ivLogo.setImageDrawable(fallback)
             } else {
-                ivLogo.load(ch.logo) {
-                    placeholder(R.drawable.ic_channel_placeholder)
-                    error(R.drawable.ic_channel_placeholder)
+                ivLogo.load(logo) {
+                    placeholder(fallback)
+                    error(fallback)
                 }
             }
             bindEpg(this, ch)

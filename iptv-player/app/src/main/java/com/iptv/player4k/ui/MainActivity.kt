@@ -20,6 +20,7 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.Fragment
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -31,7 +32,10 @@ import com.iptv.player4k.data.Playlist
 import com.iptv.player4k.data.PlaylistType
 import com.iptv.player4k.databinding.ActivityMainBinding
 import com.iptv.player4k.databinding.DialogPlaylistBinding
+import com.iptv.player4k.security.ParentalSession
 import com.iptv.player4k.ui.epg.EpgFragment
+import com.iptv.player4k.ui.multiview.MultiViewActivity
+import com.iptv.player4k.ui.settings.SettingsActivity
 import com.iptv.player4k.ui.vod.VodFragment
 import com.iptv.player4k.util.DeviceInfo
 import kotlinx.coroutines.launch
@@ -62,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
@@ -73,6 +78,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         setSupportActionBar(b.toolbar)
+        // marca: logo + "IPTV Player" com "4K" em destaque
+        b.toolbar.setLogo(R.drawable.ic_brand)
+        supportActionBar?.title = android.text.SpannableStringBuilder("IPTV Player  4K").apply {
+            setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, length, 0)
+            setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
+        }
         setupTabs(savedInstanceState?.getInt(KEY_TAB) ?: vm.currentTab)
 
         b.empty.btnEmptyAction.setOnClickListener {
@@ -92,9 +103,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Recentes/favoritos/progresso podem ter mudado no player
-        vm.rebuild()
-        vm.contentChanged()
+        SecureScreen.apply(this)
+        // recentes/favoritos/progresso e controle dos pais podem ter mudado
+        vm.parentalChanged()
+        invalidateOptionsMenu()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -199,30 +211,45 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         val has = vm.state.value.playlist != null
-        listOf(R.id.action_search, R.id.action_refresh, R.id.action_edit, R.id.action_delete)
+        listOf(R.id.action_search, R.id.action_refresh, R.id.action_edit, R.id.action_delete, R.id.action_multiview)
             .forEach { menu.findItem(it)?.isVisible = has }
+        menu.findItem(R.id.action_lock)?.apply {
+            isVisible = vm.store.hasPin && has
+            val unlocked = ParentalSession.isUnlocked
+            setTitle(if (unlocked) R.string.action_relock else R.string.action_unlock)
+            setIcon(if (unlocked) R.drawable.ic_lock_open else R.drawable.ic_lock)
+        }
         return super.onPrepareOptionsMenu(menu)
+    }
+
+    /** Ações de lista exigem PIN quando "Proteger listas com PIN" está ligado. */
+    private fun guarded(action: () -> Unit) {
+        if (vm.store.hasPin && vm.store.protectLists) PinDialog.require(this) { action() } else action()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         val current = vm.state.value.playlist
         when (item.itemId) {
-            R.id.action_playlists -> showPlaylistPicker()
-            R.id.action_add -> showPlaylistDialog(null)
+            R.id.action_playlists -> guarded { showPlaylistPicker() }
+            R.id.action_add -> guarded { showPlaylistDialog(null) }
             R.id.action_refresh -> vm.refresh()
-            R.id.action_edit -> current?.let { showPlaylistDialog(it) }
-            R.id.action_delete -> current?.let { confirmDelete(it) }
-            R.id.action_settings -> showSettings()
-            R.id.action_device -> MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.device_title)
-                .setMessage(DeviceInfo.describe(this))
-                .setPositiveButton(R.string.ok, null)
-                .show()
-            R.id.action_about -> MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.app_name)
-                .setMessage(getString(R.string.about_text, BuildConfig.VERSION_NAME))
-                .setPositiveButton(R.string.ok, null)
-                .show()
+            R.id.action_edit -> current?.let { guarded { showPlaylistDialog(it) } }
+            R.id.action_delete -> current?.let { guarded { confirmDelete(it) } }
+            R.id.action_settings -> startActivity(Intent(this, SettingsActivity::class.java))
+            R.id.action_multiview -> startActivity(Intent(this, MultiViewActivity::class.java))
+            R.id.action_lock -> if (ParentalSession.isUnlocked) {
+                ParentalSession.lock()
+                toast(R.string.relocked)
+                vm.parentalChanged()
+                invalidateOptionsMenu()
+            } else {
+                PinDialog.require(this, R.string.pin_unlock_msg) {
+                    ParentalSession.unlock()
+                    toast(R.string.unlocked)
+                    vm.parentalChanged()
+                    invalidateOptionsMenu()
+                }
+            }
             else -> return super.onOptionsItemSelected(item)
         }
         return true
@@ -252,28 +279,6 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.delete) { _, _ ->
                 vm.deletePlaylist(p)
                 invalidateOptionsMenu()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun showSettings() {
-        val st = vm.store
-        val labels = arrayOf(
-            getString(R.string.set_force_max),
-            getString(R.string.set_large_buffer),
-            getString(R.string.set_match_display),
-            getString(R.string.set_pip),
-        )
-        val values = booleanArrayOf(st.forceMaxQuality, st.largeBuffer, st.matchDisplayMode, st.pipEnabled)
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.settings_title)
-            .setMultiChoiceItems(labels, values) { _, which, checked -> values[which] = checked }
-            .setPositiveButton(R.string.save) { _, _ ->
-                st.forceMaxQuality = values[0]
-                st.largeBuffer = values[1]
-                st.matchDisplayMode = values[2]
-                st.pipEnabled = values[3]
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -337,6 +342,11 @@ class MainActivity : AppCompatActivity() {
             .setOnDismissListener { dialogBinding = null }
             .create()
 
+        // servidor, usuário e senha: a janela não aparece em prints nem gravações
+        dialog.window?.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+        )
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val p = buildPlaylist(db, currentType(), existing) ?: return@setOnClickListener

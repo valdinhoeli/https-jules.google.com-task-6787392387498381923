@@ -28,6 +28,8 @@ class EpgRepository(private val context: Context) {
         val list = ArrayList<String>()
         if (p.type == PlaylistType.XTREAM) list += XtreamApi(p).xmltvUrl()
         list += tvgUrls
+        // link M3U de painel Xtream: o guia fica no xmltv.php do mesmo servidor
+        if (list.isEmpty()) p.derivedXmltvUrl()?.let { list += it }
         return list.distinct()
     }
 
@@ -105,6 +107,8 @@ class EpgRepository(private val context: Context) {
             }
             o.writeInt(d.nameIndex.size)
             d.nameIndex.forEach { (k, v) -> o.writeUTF(k); o.writeUTF(v) }
+            o.writeInt(d.icons.size)
+            d.icons.forEach { (k, v) -> o.writeUTF(k); o.writeUTF(v) }
         }
         if (!tmp.renameTo(f)) { tmp.copyTo(f, true); tmp.delete() }
     }
@@ -128,7 +132,10 @@ class EpgRepository(private val context: Context) {
                 val m = i.readInt()
                 val names = HashMap<String, String>(m)
                 repeat(m) { names[i.readUTF()] = i.readUTF() }
-                EpgData(byId, names, updated)
+                val ic = i.readInt()
+                val icons = HashMap<String, String>(ic)
+                repeat(ic) { icons[i.readUTF()] = i.readUTF() }
+                EpgData(byId, names, updated, icons)
             }
         }.getOrNull()
     }
@@ -138,7 +145,7 @@ class EpgRepository(private val context: Context) {
     }
 
     companion object {
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val TTL = 12 * 60 * 60 * 1000L
         private const val BEFORE = 3 * 60 * 60 * 1000L
         private const val AFTER = 36 * 60 * 60 * 1000L

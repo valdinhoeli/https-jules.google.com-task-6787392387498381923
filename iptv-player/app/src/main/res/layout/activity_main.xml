@@ -4,13 +4,13 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg">
+    android:background="@drawable/bg_app">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/bg"
+        android:background="@android:color/transparent"
         app:elevation="0dp"
         app:liftOnScroll="false">
 
@@ -18,7 +18,7 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/bg"
+        android:background="@android:color/transparent"
         android:title="@string/app_name"
         app:layout_scrollFlags="scroll|enterAlways|snap" />
 
@@ -26,12 +26,18 @@
         android:id="@+id/tabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/bg"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginBottom="4dp"
+        android:background="@android:color/transparent"
         app:tabGravity="center"
         app:tabIconTint="@color/tab_color"
-        app:tabIndicatorColor="@color/primary"
-        app:tabIndicatorFullWidth="false"
-        app:tabIndicatorHeight="3dp"
+        app:tabIndicator="@drawable/tab_pill"
+        app:tabIndicatorAnimationMode="elastic"
+        app:tabIndicatorColor="@color/primary_container"
+        app:tabIndicatorFullWidth="true"
+        app:tabIndicatorGravity="stretch"
+        app:tabPaddingStart="16dp"
+        app:tabPaddingEnd="16dp"
         app:tabInlineLabel="true"
         app:tabMinWidth="72dp"
         app:tabMode="auto"
