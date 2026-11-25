@@ -46,12 +46,12 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     private val dp = resources.displayMetrics.density
     private val wide = resources.configuration.screenWidthDp >= 600
-    private val rowH = 62 * dp
+    private val rowH = (if (wide) 60 else 62) * dp
     private val headerH = 34 * dp
-    private val chanW = (if (wide) 200 else 112) * dp
+    private val chanW = (if (wide) 270 else 120) * dp
     private val pxPerMin = (if (wide) 5.5f else 4.2f) * dp
     private val gap = 2 * dp
-    private val radius = 8 * dp
+    private val radius = 5 * dp
 
     private var origin = 0L
     private var endTime = 0L
@@ -71,17 +71,32 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private val colPast = c(R.color.epg_past)
     private val colFuture = c(R.color.epg_future)
     private val colRed = c(R.color.live_red)
+    private val colNow = c(R.color.epg_now)
+    private val colCell = c(R.color.epg_cell)
+    private val colCellPast = c(R.color.epg_cell_past)
+    private val colRowFocus = c(R.color.epg_row_focus)
+    private val colCellFocus = c(R.color.epg_cell_focus)
+    private val colTextDark = c(R.color.epg_text_dark)
+    private val dateFmt = java.text.SimpleDateFormat("EEE, d 'de' MMM  HH:mm", java.util.Locale.getDefault())
+
+    /** canal tocando na pré-visualização (marcado com ▶) */
+    var playingUrl: String? = null
+        set(v) { field = v; invalidate() }
     private val colText = c(R.color.text_primary)
     private val colText2 = c(R.color.text_secondary)
     private val colDivider = c(R.color.divider)
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2 * dp }
-    private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14 * dp; typeface = Typeface.DEFAULT_BOLD }
+    private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = (if (wide) 16f else 13.5f) * dp }
     private val timePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11.5f * dp }
     private val headerPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12.5f * dp; typeface = Typeface.DEFAULT_BOLD }
-    private val namePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = (if (wide) 13.5f else 10.5f) * dp }
-    private val numPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11 * dp; color = c(R.color.text_secondary) }
+    private val namePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = (if (wide) 16f else 10.5f) * dp; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
+    }
+    private val numPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = 15 * dp; color = c(R.color.text_secondary); typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+    }
     private val pillPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10 * dp; typeface = Typeface.DEFAULT_BOLD; color = 0xFFFFFFFF.toInt() }
     private val rect = RectF()
 
@@ -239,7 +254,7 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             val top = headerH + r * rowH - sy
             val list = programmes(r)
             if (list.isEmpty()) {
-                drawBlock(canvas, null, chanW + gap, width - gap, top, now, r == focusRow, getEmptyLabel())
+                drawBlock(canvas, null, chanW + gap, width - gap, top, now, r == focusRow, r == focusRow, getEmptyLabel())
                 continue
             }
             var i = EpgData.firstEndingAfter(list, tStart)
@@ -247,14 +262,14 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
                 val p = list[i]
                 val left = chanW + timeToX(max(p.start, origin)) - sx + gap
                 val right = chanW + timeToX(min(p.stop, endTime)) - sx - gap
-                drawBlock(canvas, p, left, right, top, now, r == focusRow && p === focused, p.title)
+                drawBlock(canvas, p, left, right, top, now, r == focusRow && p === focused, r == focusRow, p.title)
                 i++
             }
         }
         // linha do "agora"
         val nowX = chanW + timeToX(now) - sx
         if (nowX >= chanW && nowX <= width) {
-            fill.color = colRed
+            fill.color = colNow
             canvas.drawRect(nowX - 1 * dp, headerH, nowX + 1 * dp, height.toFloat(), fill)
         }
         canvas.restore()
@@ -265,64 +280,32 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     private fun getEmptyLabel() = context.getString(R.string.epg_no_info)
 
+    /** Célula de programa: focada = branca com texto escuro; linha focada = mais clara. */
     private fun drawBlock(
         canvas: Canvas, p: Programme?, left: Float, right: Float, top: Float,
-        now: Long, isFocus: Boolean, label: String,
+        now: Long, isFocus: Boolean, rowFocused: Boolean, label: String,
     ) {
         if (right - left < 2 * dp) return
-        val live = p != null && now >= p.start && now < p.stop
         val past = p != null && p.stop <= now
         rect.set(left, top + gap, right, top + rowH - gap)
         fill.color = when {
-            isFocus -> colPrimary
-            live -> colLive
-            past || p == null -> colPast
-            else -> colFuture
+            isFocus -> colCellFocus
+            rowFocused -> colRowFocus
+            past || p == null -> colCellPast
+            else -> colCell
         }
         canvas.drawRoundRect(rect, radius, radius, fill)
-
-        if (live && !isFocus) {
-            // barra de progresso do programa ao vivo
-            val pw = (right - left) * p!!.progress(now)
-            fill.color = colRed
-            canvas.save()
-            canvas.clipRect(left, top + rowH - gap - 3 * dp, left + pw, top + rowH - gap)
-            canvas.drawRoundRect(rect, radius, radius, fill)
-            canvas.restore()
-            stroke.color = 0x667C6CFF
-            stroke.strokeWidth = 1 * dp
-            canvas.drawRoundRect(rect, radius, radius, stroke)
-        }
-        if (isFocus) {
-            stroke.color = 0xFFFFFFFF.toInt()
-            stroke.strokeWidth = 2 * dp
-            canvas.drawRoundRect(rect, radius, radius, stroke)
-        }
-
         // texto "grudado" na borda esquerda visível
-        val textLeft = max(left, chanW) + 8 * dp
-        val avail = right - textLeft - 6 * dp
+        val textLeft = max(left, chanW) + 14 * dp
+        val avail = right - textLeft - 8 * dp
         if (avail < 14 * dp) return
-        var x = textLeft
-        if (live) {
-            val pill = context.getString(R.string.epg_live)
-            val pwid = pillPaint.measureText(pill) + 8 * dp
-            if (avail > pwid + 40 * dp) {
-                fill.color = colRed
-                rect.set(x, top + 9 * dp, x + pwid, top + 23 * dp)
-                canvas.drawRoundRect(rect, 3 * dp, 3 * dp, fill)
-                canvas.drawText(pill, x + 4 * dp, top + 19.5f * dp, pillPaint)
-                x += pwid + 6 * dp
-            }
+        titlePaint.color = when {
+            isFocus -> colTextDark
+            past && !rowFocused -> colText2
+            else -> colText
         }
-        titlePaint.color = if (past && !isFocus) colText2 else colText
-        val title = TextUtils.ellipsize(label, titlePaint, right - x - 6 * dp, TextUtils.TruncateAt.END)
-        canvas.drawText(title, 0, title.length, x, top + 22 * dp, titlePaint)
-        if (p != null) {
-            timePaint.color = if (isFocus) 0xFFFFFFFF.toInt() else colText2
-            val t = TextUtils.ellipsize(Fmt.range(p.start, p.stop), timePaint, avail, TextUtils.TruncateAt.END)
-            canvas.drawText(t, 0, t.length, textLeft, top + 42 * dp, timePaint)
-        }
+        val title = TextUtils.ellipsize(label, titlePaint, avail, TextUtils.TruncateAt.END)
+        canvas.drawText(title, 0, title.length, textLeft, top + rowH / 2 + titlePaint.textSize * 0.36f, titlePaint)
     }
 
     private fun drawHeader(canvas: Canvas, tStart: Long, tEnd: Long, nowX: Float) {
@@ -340,57 +323,66 @@ class EpgGridView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             t += 30 * 60_000L
         }
         if (nowX >= chanW && nowX <= width) {
-            val label = context.getString(R.string.epg_now)
-            val w = pillPaint.measureText(label) + 10 * dp
-            fill.color = colRed
-            rect.set(nowX - w / 2, 4 * dp, nowX + w / 2, 20 * dp)
-            canvas.drawRoundRect(rect, 4 * dp, 4 * dp, fill)
-            canvas.drawText(label, nowX - w / 2 + 5 * dp, 15.5f * dp, pillPaint)
-            canvas.drawRect(nowX - 1 * dp, 20 * dp, nowX + 1 * dp, headerH, fill)
+            fill.color = colNow
+            canvas.drawCircle(nowX, headerH - 4 * dp, 4 * dp, fill)
         }
         canvas.restore()
-        // canto: dia
-        fill.color = colSurface
+        // canto: "qua, 25 de nov  16:37"
+        fill.color = bg
         canvas.drawRect(0f, 0f, chanW, headerH, fill)
-        headerPaint.color = colText
-        val day = context.getString(R.string.today) + " " + Fmt.day(System.currentTimeMillis())
-        canvas.drawText(day, 10 * dp, headerH - 12 * dp, headerPaint)
+        headerPaint.color = colNow
+        val day = TextUtils.ellipsize(dateFmt.format(java.util.Date()), headerPaint, chanW - 16 * dp, TextUtils.TruncateAt.END)
+        canvas.drawText(day, 0, day.length, 10 * dp, headerH - 12 * dp, headerPaint)
+        fill.color = colNow
+        canvas.drawRect(0f, headerH - 1 * dp, width.toFloat(), headerH, fill.apply { alpha = 90 })
+        fill.alpha = 255
     }
 
     private fun drawChannels(canvas: Canvas, first: Int, last: Int) {
         canvas.save()
         canvas.clipRect(0f, headerH, chanW, height.toFloat())
-        fill.color = colSurface
+        fill.color = bg
         canvas.drawRect(0f, headerH, chanW, height.toFloat(), fill)
         for (r in first..last) {
             val ch = channels[r]
             val top = headerH + r * rowH - sy
-            if (r == focusRow) {
-                fill.color = colFocusRow
-                canvas.drawRect(0f, top, chanW, top + rowH, fill)
-                fill.color = colPrimary
-                canvas.drawRect(0f, top, 3 * dp, top + rowH, fill)
-            }
-            fill.color = colDivider
-            canvas.drawRect(0f, top + rowH - 1, chanW, top + rowH, fill)
-            namePaint.color = if (r == focusRow) 0xFFFFFFFF.toInt() else colText
+            val focusedRow = r == focusRow
+            val playing = ch.url == playingUrl
+            namePaint.color = if (focusedRow) colNow else colText
+            numPaint.color = if (focusedRow) colNow else colText2
             if (wide) {
-                canvas.drawText((r + 1).toString(), 10 * dp, top + rowH / 2 + 4 * dp, numPaint)
-                val lx = 38 * dp
-                drawLogo(canvas, ch, lx, top + 10 * dp, 52 * dp, rowH - 20 * dp)
-                val nx = lx + 60 * dp
-                val name = TextUtils.ellipsize(ch.name, namePaint, chanW - nx - 8 * dp, TextUtils.TruncateAt.END)
-                canvas.drawText(name, 0, name.length, nx, top + rowH / 2 + 5 * dp, namePaint)
+                val num = (r + 1).toString()
+                canvas.drawText(num, 10 * dp, top + rowH / 2 + 5 * dp, numPaint)
+                val lx = 52 * dp
+                drawLogo(canvas, ch, lx, top + 9 * dp, 62 * dp, rowH - 18 * dp)
+                val nx = lx + 74 * dp
+                val maxW = chanW - nx - (if (playing) 28 else 8) * dp
+                val name = TextUtils.ellipsize(ch.name, namePaint, maxW, TextUtils.TruncateAt.END)
+                canvas.drawText(name, 0, name.length, nx, top + rowH / 2 + 6 * dp, namePaint)
+                if (playing) drawPlayMark(canvas, chanW - 20 * dp, top + rowH / 2)
             } else {
                 drawLogo(canvas, ch, 8 * dp, top + 6 * dp, chanW - 16 * dp, 30 * dp)
                 val name = TextUtils.ellipsize(ch.name, namePaint, chanW - 12 * dp, TextUtils.TruncateAt.END)
                 val w = namePaint.measureText(name, 0, name.length)
                 canvas.drawText(name, 0, name.length, (chanW - w) / 2, top + rowH - 10 * dp, namePaint)
+                if (playing) drawPlayMark(canvas, chanW - 10 * dp, top + 14 * dp)
             }
         }
         canvas.restore()
-        fill.color = colDivider
-        canvas.drawRect(chanW - 1, headerH, chanW, height.toFloat(), fill)
+    }
+
+    private val playPath = android.graphics.Path()
+
+    /** ▶ ao lado do canal que está tocando na pré-visualização. */
+    private fun drawPlayMark(canvas: Canvas, cx: Float, cy: Float) {
+        val s = 7 * dp
+        playPath.reset()
+        playPath.moveTo(cx - s * 0.6f, cy - s)
+        playPath.lineTo(cx + s, cy)
+        playPath.lineTo(cx - s * 0.6f, cy + s)
+        playPath.close()
+        fill.color = colNow
+        canvas.drawPath(playPath, fill)
     }
 
     private fun drawLogo(canvas: Canvas, ch: Channel, x: Float, y: Float, w: Float, h: Float) {

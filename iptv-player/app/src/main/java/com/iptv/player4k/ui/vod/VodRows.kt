@@ -176,7 +176,7 @@ object VodRows {
     fun playMovie(ctx: Context, m: VodItem) {
         val ch = Channel(
             name = m.name, url = m.url, logo = m.poster, group = m.category,
-            headers = m.headers, kind = ContentKind.MOVIE, refId = m.id,
+            headers = m.headers, kind = ContentKind.MOVIE, refId = m.id, description = m.plot,
         )
         PlaybackQueue.set(Session.playlist, listOf(ch))
         ctx.startActivity(Intent(ctx, PlayerActivity::class.java).putExtra(PlayerActivity.EXTRA_INDEX, 0))
@@ -188,7 +188,7 @@ object VodRows {
             Channel(
                 name = ctx.getString(R.string.ep_label, e.season, e.number, e.title).let { "${s.name} · $it" },
                 url = e.url, logo = e.image ?: s.poster, group = s.name,
-                headers = e.headers, kind = ContentKind.SERIES, refId = s.id,
+                headers = e.headers, kind = ContentKind.SERIES, refId = s.id, description = e.plot ?: s.plot,
             )
         }
         PlaybackQueue.set(Session.playlist, list)

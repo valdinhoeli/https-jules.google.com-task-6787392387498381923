@@ -200,6 +200,12 @@
                 android:layout_weight="1" />
 
             <ImageButton
+                android:id="@+id/btnChannels"
+                style="@style/PlayerButton"
+                android:contentDescription="@string/channel_list"
+                android:src="@drawable/ic_list" />
+
+            <ImageButton
                 android:id="@+id/btnQuality"
                 style="@style/PlayerButton"
                 android:contentDescription="@string/quality"

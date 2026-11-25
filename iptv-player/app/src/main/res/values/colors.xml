@@ -23,4 +23,10 @@
     <color name="epg_past">#10141F</color>
     <color name="epg_future">#1A2133</color>
     <color name="gold">#FFC94D</color>
+    <color name="epg_now">#38BDF8</color>
+    <color name="epg_cell">#2A3245</color>
+    <color name="epg_cell_past">#1E2535</color>
+    <color name="epg_row_focus">#4A5574</color>
+    <color name="epg_cell_focus">#F2F4F8</color>
+    <color name="epg_text_dark">#141824</color>
 </resources>

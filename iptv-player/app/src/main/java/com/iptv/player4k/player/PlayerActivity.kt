@@ -24,6 +24,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -85,6 +87,9 @@ class PlayerActivity : AppCompatActivity() {
     private var mimeAttempt = 0
     private var retryCount = 0
     private var consumedKey = -1
+    private lateinit var panel: ChannelPanel
+    /** sinopse e "FILME • 2015 • ★ 7.8 • 1h30" de filmes/episódios (buscados no painel) */
+    private val vodInfo = HashMap<String, Pair<String?, String?>>()
     private val isVod get() = channels.getOrNull(index)?.kind?.let { it != ContentKind.LIVE } == true
     private val tvEpg by lazy { b.playerView.findViewById<TextView>(R.id.tvEpg) }
 
@@ -134,9 +139,15 @@ class PlayerActivity : AppCompatActivity() {
         hideSystemUi()
         com.iptv.player4k.ui.SecureScreen.apply(this)
         setupControls()
+        panel = ChannelPanel(b) { pos ->
+            index = pos.coerceIn(0, channels.lastIndex)
+            playCurrent()
+        }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() { finish() }
+            override fun handleOnBackPressed() {
+                if (panel.isShowing) panel.hide() else finish()
+            }
         })
     }
 
@@ -277,7 +288,10 @@ class PlayerActivity : AppCompatActivity() {
         updateLiveUi()
         showOsd(ch)
         startMedia(ch)
-        if (ch.kind != ContentKind.LIVE) resumeSaved(ch)
+        if (ch.kind != ContentKind.LIVE) {
+            resumeSaved(ch)
+            loadVodInfo(ch)
+        }
     }
 
     /** Retoma filmes/episódios de onde parou. */
@@ -341,7 +355,25 @@ class PlayerActivity : AppCompatActivity() {
         v.tvBnTech.isVisible = techLabel.isNotEmpty()
         v.tvBnLive.isVisible = live
 
-        val cur = if (live) epg?.now(ch, now) else null
+        val lp = v.ivBnLogo.layoutParams
+        val d = resources.displayMetrics.density
+        lp.width = ((if (live) 104 else 84) * d).toInt()
+        lp.height = ((if (live) 70 else 126) * d).toInt()
+        v.ivBnLogo.layoutParams = lp
+        if (!live) {
+            // filme/episódio: capa, "FILME • ano • nota • duração", título e sinopse
+            val info = vodInfo[ch.url]
+            v.tvBnChannel.text = info?.second ?: getString(if (ch.kind == ContentKind.MOVIE) R.string.kind_movie else R.string.kind_series)
+            v.tvBnTitle.text = ch.name
+            v.bnTimeRow.isVisible = false
+            v.tvBnNext.isVisible = false
+            v.tvBnDesc.maxLines = 5
+            v.tvBnDesc.text = info?.first ?: ch.description ?: getString(R.string.no_plot)
+            v.tvBnDesc.isVisible = true
+            return
+        }
+        v.tvBnDesc.maxLines = 2
+        val cur = epg?.now(ch, now)
         if (cur == null) {
             v.tvBnTitle.text = if (live) getString(R.string.epg_no_info) else ch.name
             v.bnTimeRow.isVisible = false
@@ -361,6 +393,41 @@ class PlayerActivity : AppCompatActivity() {
         val next = epg?.next(ch, now)
         v.tvBnNext.isVisible = next != null
         v.tvBnNext.text = next?.let { "${getString(R.string.epg_next)}  ${Fmt.time(it.start)} · ${it.title}" }
+    }
+
+    private fun openPanel() {
+        if (channels.isEmpty()) return
+        b.playerView.hideController()
+        handler.removeCallbacks(hideOsd)
+        b.osd.isVisible = false
+        panel.show(channels, index)
+    }
+
+    /** Sinopse e ficha do filme/série (lista ou painel Xtream), mostradas ao apertar OK. */
+    private fun loadVodInfo(ch: Channel) {
+        if (vodInfo.containsKey(ch.url)) return
+        val pl = PlaybackQueue.playlist ?: return
+        val lib = Session.library
+        val repo = com.iptv.player4k.data.LibraryRepository(this)
+        lifecycleScope.launch {
+            val info: Pair<String?, String?> = if (ch.kind == ContentKind.MOVIE) {
+                val m = lib.movie(ch.refId)
+                val d = m?.let { runCatching { repo.movieDetails(pl, it) }.getOrNull() }
+                (ch.description ?: d?.plot ?: m?.plot) to listOfNotNull(
+                    getString(R.string.kind_movie), d?.year ?: m?.year, Fmt.rating(d?.rating ?: m?.rating),
+                    d?.durationSecs?.takeIf { it > 0 }?.let { Fmt.duration(it / 60) }, d?.genre ?: m?.category,
+                ).joinToString("  •  ")
+            } else {
+                val s = lib.series(ch.refId)
+                val d = s?.let { runCatching { repo.seriesDetails(pl, it) }.getOrNull() }
+                val ep = d?.episodes?.firstOrNull { it.url == ch.url } ?: s?.episodes?.firstOrNull { it.url == ch.url }
+                (ch.description ?: ep?.plot ?: d?.plot ?: s?.plot) to listOfNotNull(
+                    getString(R.string.kind_series), s?.name, d?.year ?: s?.year, Fmt.rating(d?.rating ?: s?.rating),
+                ).joinToString("  •  ")
+            }
+            vodInfo[ch.url] = info
+            if (channels.getOrNull(index)?.url == ch.url) bindEpg(ch)
+        }
     }
 
     private fun startMedia(ch: Channel) {
@@ -491,8 +558,10 @@ class PlayerActivity : AppCompatActivity() {
         val ch = channels.getOrNull(index)
         val live = ch?.kind == ContentKind.LIVE || player?.isCurrentMediaItemLive == true
         timeRow?.isVisible = !live
-        b.playerView.findViewById<View>(R.id.centerControls)?.isVisible = !live
-        b.playerView.findViewById<View>(R.id.liveNav)?.isVisible = live
+        // centro livre também em filmes: play/pausa e anterior/próximo ficam na linha de baixo
+        b.playerView.findViewById<View>(R.id.centerControls)?.isVisible = false
+        b.playerView.findViewById<View>(R.id.liveNav)?.isVisible = true
+        b.playerView.findViewById<View>(R.id.btnChannels)?.isVisible = live && channels.size > 1
         b.playerView.findViewById<View>(R.id.btnPrevLive)?.isVisible = channels.size > 1
         b.playerView.findViewById<View>(R.id.btnNextLive)?.isVisible = channels.size > 1
         updatePlayLiveIcon()
@@ -557,6 +626,7 @@ class PlayerActivity : AppCompatActivity() {
         pv.findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         pv.findViewById<ImageButton>(R.id.btnPrev).setOnClickListener { switchChannel(-1) }
         pv.findViewById<ImageButton>(R.id.btnPrevLive).setOnClickListener { switchChannel(-1) }
+        pv.findViewById<ImageButton>(R.id.btnChannels).setOnClickListener { openPanel() }
         pv.findViewById<ImageButton>(R.id.btnNextLive).setOnClickListener { switchChannel(+1) }
         pv.findViewById<ImageButton>(R.id.btnPlayLive).setOnClickListener {
             player?.let { it.playWhenReady = !it.playWhenReady }
@@ -698,8 +768,20 @@ class PlayerActivity : AppCompatActivity() {
             consumedKey = -1
             return true
         }
+        // lista de canais aberta: as setas e o OK são da lista
+        if (::panel.isInitialized && panel.isShowing) {
+            if (event.action == KeyEvent.ACTION_DOWN) panel.poke()
+            return super.dispatchKeyEvent(event)
+        }
         if (event.action == KeyEvent.ACTION_DOWN) {
             val controllerHidden = !b.playerView.isControllerFullyVisible && !b.errorView.isVisible
+            // OK num canal ao vivo em tela cheia: abre a lista de canais
+            val isOk = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_NUMPAD_ENTER
+            if (isOk && controllerHidden && channels.getOrNull(index)?.kind == ContentKind.LIVE) {
+                consumedKey = code
+                if (event.repeatCount == 0) openPanel()
+                return true
+            }
             val delta = when (code) {
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_MEDIA_NEXT -> +1
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> -1
@@ -799,6 +881,7 @@ class PlayerActivity : AppCompatActivity() {
             pipReceiverOn = false
         }
         if (isInPictureInPictureMode) {
+            if (::panel.isInitialized) panel.hide()
             b.osd.isVisible = false
             b.playerView.hideController()
         } else if (lifecycle.currentState == Lifecycle.State.CREATED) {

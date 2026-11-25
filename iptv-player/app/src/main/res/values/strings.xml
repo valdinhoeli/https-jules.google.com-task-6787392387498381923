@@ -238,4 +238,5 @@
     <string name="trailer_open_youtube">Abrir no YouTube</string>
     <string name="trailer_error">Este trailer não pode ser exibido dentro do app.</string>
     <string name="trailer_no_app">Nenhum app para abrir o YouTube foi encontrado</string>
+    <string name="channel_list">Lista de canais</string>
 </resources>
