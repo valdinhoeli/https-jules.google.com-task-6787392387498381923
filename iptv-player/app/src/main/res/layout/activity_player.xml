@@ -15,7 +15,7 @@
         app:controller_layout_id="@layout/player_controls"
         app:resize_mode="fit"
         app:show_buffering="always"
-        app:show_timeout="4000"
+        app:show_timeout="7000"
         app:shutter_background_color="@android:color/black"
         app:surface_type="surface_view"
         app:use_artwork="false" />

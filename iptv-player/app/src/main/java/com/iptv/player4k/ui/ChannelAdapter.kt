@@ -49,7 +49,11 @@ class ChannelAdapter(
     override fun getItemCount() = items.size
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-        VH(ItemChannelBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        VH(ItemChannelBinding.inflate(LayoutInflater.from(parent.context), parent, false)).also { vh ->
+            // controle remoto: ▶ num canal não pula para o menu do topo
+            vh.b.root.id = android.view.View.generateViewId()
+            vh.b.root.nextFocusRightId = vh.b.root.id
+        }
 
     override fun onBindViewHolder(holder: VH, position: Int, payloads: MutableList<Any>) {
         if (payloads.isNotEmpty() && payloads.all { it == PAYLOAD_EPG }) bindEpg(holder.b, items[position])

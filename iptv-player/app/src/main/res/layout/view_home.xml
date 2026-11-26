@@ -12,6 +12,7 @@
 
     <!-- topo: marca, lista + validade, relógio e atalhos -->
     <LinearLayout
+        android:id="@+id/homeHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
@@ -62,6 +63,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnHomeLists"
+            android:nextFocusLeft="@id/btnHomeLists"
             style="@style/HomeIconButton"
             android:layout_marginStart="6dp"
             android:contentDescription="@string/action_playlists"
@@ -76,6 +78,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnHomeSettings"
+            android:nextFocusRight="@id/btnHomeSettings"
             style="@style/HomeIconButton"
             android:layout_marginStart="6dp"
             android:contentDescription="@string/home_settings"
@@ -106,6 +109,7 @@
         android:scrollbars="none">
 
         <LinearLayout
+            android:id="@+id/homeScrollContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:clipChildren="false"
@@ -131,6 +135,7 @@
 
             <FrameLayout
                 android:id="@+id/cardLive"
+            android:nextFocusLeft="@id/cardLive"
                 android:layout_width="0dp"
                 android:layout_height="118dp"
                 android:layout_margin="6dp"
@@ -177,6 +182,7 @@
 
             <FrameLayout
                 android:id="@+id/cardMovies"
+            android:nextFocusRight="@id/cardMovies"
                 android:layout_width="0dp"
                 android:layout_height="118dp"
                 android:layout_margin="6dp"
@@ -229,6 +235,7 @@
 
             <FrameLayout
                 android:id="@+id/cardSeries"
+            android:nextFocusLeft="@id/cardSeries"
                 android:layout_width="0dp"
                 android:layout_height="118dp"
                 android:layout_margin="6dp"
@@ -275,6 +282,7 @@
 
             <FrameLayout
                 android:id="@+id/cardKids"
+            android:nextFocusRight="@id/cardKids"
                 android:layout_width="0dp"
                 android:layout_height="118dp"
                 android:layout_margin="6dp"

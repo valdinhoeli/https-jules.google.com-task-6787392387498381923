@@ -38,7 +38,13 @@ class PosterAdapter(
             v.animate().scaleX(s).scaleY(s).translationZ(if (has) 12f else 0f).setDuration(150).start()
             b.tvTitle.setTextColor(if (has) 0xFFFFFFFF.toInt() else 0xFF98A2B8.toInt())
         }
-        return VH(b)
+        val vh = VH(b)
+        // controle remoto: ▶ no último item da fileira não pula para outra fileira
+        b.root.setOnKeyListener { _, code, ev ->
+            code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && ev.action == android.view.KeyEvent.ACTION_DOWN &&
+                vh.bindingAdapterPosition == items.lastIndex
+        }
+        return vh
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
@@ -66,6 +72,7 @@ class PosterAdapter(
                 }
             }
             root.setOnClickListener { onClick(item) }
+            root.contentDescription = item.title
             card.clipToOutline = true
         }
     }

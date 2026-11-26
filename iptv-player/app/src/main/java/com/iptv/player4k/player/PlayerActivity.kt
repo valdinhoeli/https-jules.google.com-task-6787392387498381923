@@ -130,6 +130,13 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         b = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(b.root)
+        // TV: controles, faixa do guia e lista de canais dentro da área segura (overscan)
+        com.iptv.player4k.ui.TvSafeArea.run {
+            b.playerView.findViewById<View>(R.id.topBar)?.let { pad(it, left = 32, top = 18, right = 32) }
+            b.playerView.findViewById<View>(R.id.bottomBar)?.let { pad(it, left = 32, right = 32, bottom = 20) }
+            pad(b.osd, left = 32, right = 32, bottom = 20)
+            pad(b.chPanel, left = 32, top = 20, right = 32, bottom = 20)
+        }
         store = PlaylistStore(this)
 
         if (channels.isEmpty()) { finish(); return }
@@ -155,7 +162,7 @@ class PlayerActivity : AppCompatActivity() {
                 val live = channels.getOrNull(index)?.kind == ContentKind.LIVE
                 when {
                     panel.isShowing -> panel.back()
-                    b.playerView.isControllerFullyVisible -> b.playerView.hideController()
+                    controlsShown -> b.playerView.hideController()
                     // canal ao vivo: voltar abre os grupos sem sair do canal
                     live && Session.live.isNotEmpty() -> openPanel(withGroups = true)
                     else -> finish()
@@ -683,7 +690,7 @@ class PlayerActivity : AppCompatActivity() {
     /** Faixa de informações embaixo ao trocar de canal (some sozinha). */
     private fun showOsd(ch: Channel) {
         bindBanner(b.bannerOsd, ch)
-        if (b.playerView.isControllerFullyVisible) return // o controle já mostra a mesma faixa
+        if (controlsShown) return // o controle já mostra a mesma faixa
         b.osd.isVisible = true
         handler.removeCallbacks(hideOsd)
         handler.postDelayed(hideOsd, 6_000)
@@ -775,6 +782,49 @@ class PlayerActivity : AppCompatActivity() {
     // Controle remoto (Android TV / TV Box)
     // ------------------------------------------------------------------
 
+    /**
+     * Barra de controles visível de verdade. (isControllerFullyVisible do Media3 fica falso com a
+     * animação desligada: ▶ puxava o foco de volta e Voltar abria a lista em vez de fechar a barra.)
+     */
+    private val controlsShown: Boolean
+        get() = b.playerView.findViewById<View>(androidx.media3.ui.R.id.exo_controller)?.isShown == true
+
+    private fun handleControlsKey(event: KeyEvent): Boolean {
+        val code = event.keyCode
+        val dir = when (code) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> View.FOCUS_LEFT
+            KeyEvent.KEYCODE_DPAD_RIGHT -> View.FOCUS_RIGHT
+            KeyEvent.KEYCODE_DPAD_UP -> View.FOCUS_UP
+            KeyEvent.KEYCODE_DPAD_DOWN -> View.FOCUS_DOWN
+            else -> 0
+        }
+        val isOk = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_NUMPAD_ENTER
+        if (dir == 0 && !isOk) return false
+        if (event.action != KeyEvent.ACTION_DOWN) return true
+        val cur = currentFocus?.takeIf { it.isShown && isInPlayer(it) }
+        when {
+            // barra de tempo (filmes/séries): ◀/▶ avançam/voltam
+            cur is androidx.media3.ui.DefaultTimeBar && (dir == View.FOCUS_LEFT || dir == View.FOCUS_RIGHT) -> cur.onKeyDown(code, event)
+            isOk -> cur?.performClick()
+            cur == null -> focusPlay()
+            else -> cur.focusSearch(dir)?.takeIf { it.isShown && isInPlayer(it) }?.requestFocus()
+        }
+        b.playerView.showController() // reinicia o tempo para esconder
+        return true
+    }
+
+    private fun isInPlayer(v: View): Boolean {
+        var p: android.view.ViewParent? = v.parent
+        while (p != null) { if (p === b.playerView) return true; p = p.parent }
+        return false
+    }
+
+    private fun focusPlay() {
+        val id = if (channels.getOrNull(index)?.kind == ContentKind.LIVE) R.id.btnPlayLive else androidx.media3.ui.R.id.exo_play_pause
+        b.playerView.findViewById<View>(id)?.takeIf { it.isShown }?.requestFocus()
+            ?: b.playerView.findViewById<View>(R.id.btnBack)?.requestFocus()
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         if (event.action == KeyEvent.ACTION_UP && code == consumedKey) {
@@ -786,8 +836,12 @@ class PlayerActivity : AppCompatActivity() {
             if (event.action == KeyEvent.ACTION_DOWN) panel.poke()
             return super.dispatchKeyEvent(event)
         }
+        // Barra de controles aberta: o próprio app move o foco e aciona os botões.
+        // (O PlayerView do Media3 "engolia" as setas e o OK para mostrar a barra de novo,
+        // então no controle remoto não dava para andar entre os botões nem apertá-los.)
+        if (controlsShown && !b.errorView.isVisible && handleControlsKey(event)) return true
         if (event.action == KeyEvent.ACTION_DOWN) {
-            val controllerHidden = !b.playerView.isControllerFullyVisible && !b.errorView.isVisible
+            val controllerHidden = !controlsShown && !b.errorView.isVisible
             // OK num canal ao vivo em tela cheia: abre a lista de canais
             val isOk = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_NUMPAD_ENTER
             if (isOk && controllerHidden && channels.getOrNull(index)?.kind == ContentKind.LIVE) {
@@ -814,6 +868,16 @@ class PlayerActivity : AppCompatActivity() {
             if (delta != 0) {
                 consumedKey = code
                 if (event.repeatCount == 0) switchChannel(delta)
+                return true
+            }
+            // ◀/▶ com a tela limpa: mostra os controles com o foco no play (controle remoto sem tecla MENU)
+            if (controllerHidden && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                consumedKey = code
+                if (event.repeatCount == 0) {
+                    channels.getOrNull(index)?.let { if (it.kind != ContentKind.LIVE) bindBanner(ctlBanner, it) else showOsd(it) }
+                    b.playerView.showController()
+                    b.playerView.post { focusPlay() }
+                }
                 return true
             }
             if (code == KeyEvent.KEYCODE_INFO || code == KeyEvent.KEYCODE_MENU) {
@@ -886,8 +950,15 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (player?.isPlaying == true) enterPip()
+        // Botão "início" do aparelho: no celular vira janela flutuante (PiP). Na TV/TV Box não —
+        // muitas aceitam PiP mas não mostram a janela, e o som continuava tocando escondido.
+        if (player?.isPlaying == true && !isTv()) enterPip()
     }
+
+    private fun isTv(): Boolean =
+        (getSystemService(UI_MODE_SERVICE) as android.app.UiModeManager).currentModeType ==
+            Configuration.UI_MODE_TYPE_TELEVISION ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)

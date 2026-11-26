@@ -69,6 +69,8 @@
     <string name="set_large_buffer">Buffer maior (internet instável)</string>
     <string name="set_match_display">Mudar a TV para 4K ao reproduzir vídeo 4K</string>
     <string name="set_pip">Picture-in-Picture ao sair do player</string>
+    <string name="set_start_last">Abrir no último canal assistido</string>
+    <string name="set_start_last_sum">Ao abrir o app, o último canal ao vivo começa a tocar sozinho. Voltar leva à tela inicial</string>
 
     <string name="device_title">Compatibilidade do aparelho</string>
     <string name="about_text">IPTV Player 4K %s\n\nPlayer de listas IPTV (M3U, M3U8, Xtream Codes) com suporte a HLS, MPEG-TS, DASH e RTSP em SD, HD, Full HD e 4K, incluindo HDR quando o aparelho suporta.\n\nO app não fornece canais nem conteúdo: use apenas listas às quais você tem direito.</string>
@@ -172,7 +174,7 @@
     <string name="set_force_max_sum">Ignora a internet e usa sempre a maior resolução</string>
     <string name="set_large_buffer_sum">Mais tempo de vídeo guardado: menos travadas</string>
     <string name="set_match_display_sum">Para TVs 4K que mostram o menu em Full HD</string>
-    <string name="set_pip_sum">Continua o vídeo numa janela ao sair do app</string>
+    <string name="set_pip_sum">Continua o vídeo numa janela ao sair do app (no celular/tablet; na TV o vídeo para ao sair)</string>
     <string name="par_create_pin">Criar PIN</string>
     <string name="par_create_pin_sum">Ativa o controle dos pais (4 a 8 números)</string>
     <string name="par_change_pin">Alterar PIN</string>

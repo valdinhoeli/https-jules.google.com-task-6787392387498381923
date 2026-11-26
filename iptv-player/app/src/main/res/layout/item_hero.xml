@@ -100,6 +100,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnHeroInfo"
+                    android:nextFocusRight="@id/btnHeroInfo"
                 style="@style/GhostButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

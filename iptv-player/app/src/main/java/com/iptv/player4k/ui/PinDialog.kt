@@ -18,6 +18,7 @@ object PinDialog {
         val store = PlaylistStore(activity)
         if (!store.hasPin) { onOk(); return }
         val db = DialogPinBinding.inflate(activity.layoutInflater)
+        com.iptv.player4k.security.SecureField.protect(db.etPin)
         db.tvPinHint.setText(message)
         val dialog = MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.pin_title)
@@ -49,6 +50,7 @@ object PinDialog {
     /** Cadastro de PIN novo (digitado duas vezes). */
     fun create(activity: Activity, onDone: (String) -> Unit) {
         val db = DialogPinBinding.inflate(activity.layoutInflater)
+        com.iptv.player4k.security.SecureField.protect(db.etPin)
         db.tvPinHint.setText(R.string.pin_create_hint)
         var first: String? = null
         val dialog = MaterialAlertDialogBuilder(activity)

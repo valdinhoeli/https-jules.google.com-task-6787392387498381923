@@ -106,6 +106,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val messages: SharedFlow<String> = _messages
 
     var currentTab = 0
+    /** "abrir no último canal" já foi feito nesta abertura do app */
+    var autoStartDone = false
     /** seção aberta: 0 = tela inicial (ver MainActivity.SECTION_*) */
     var section = 0
 

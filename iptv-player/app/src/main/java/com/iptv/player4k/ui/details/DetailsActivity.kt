@@ -47,6 +47,14 @@ class DetailsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         b = ActivityDetailsBinding.inflate(layoutInflater)
         setContentView(b.root)
+        // TV: conteúdo e botão voltar dentro da área segura
+        com.iptv.player4k.ui.TvSafeArea.pad(b.detailsBody, left = 28, right = 28, bottom = 27)
+        if (com.iptv.player4k.ui.TvSafeArea.isTv(this)) {
+            (b.btnBack.layoutParams as android.view.ViewGroup.MarginLayoutParams).apply {
+                val d = resources.displayMetrics.density
+                marginStart += (36 * d).toInt(); topMargin += (15 * d).toInt()
+            }
+        }
         com.iptv.player4k.ui.SecureScreen.apply(this)
         store = PlaylistStore(this)
         repo = LibraryRepository(this)

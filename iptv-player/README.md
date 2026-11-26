@@ -5,9 +5,9 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 > O app não contém canais. Use apenas listas às quais você tem direito.
 
-| Tela inicial (TV) | Celular: validade, novidades e esportes | Trocar de grupo sem sair do canal |
+| Tela inicial (Android TV) | KIDS | Trocar de grupo sem sair do canal |
 |---|---|---|
-| ![](docs/home.png) | ![](docs/home-celular.png) | ![](docs/player-grupos.png) |
+| ![](docs/home.png) | ![](docs/kids-tv.png) | ![](docs/player-grupos.png) |
 
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
@@ -25,7 +25,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.4.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.5.0.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -41,6 +41,26 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.5.0 — KIDS, esportes só ao vivo, último canal e segurança**
+- Cartão **KIDS** na tela inicial: canais, filmes e séries infantis extraídos da lista
+  (grupos/categorias Infantil, Kids, Desenhos, Animação, Família e canais conhecidos);
+  conteúdo adulto ou acima de 12 anos nunca entra
+- Rodapé de esportes mostra só o evento de verdade: ignora reprise, VT, compacto,
+  melhores momentos, "(R)" e a reexibição de um jogo que já passou (usa as marcas
+  `<live/>` e `<previously-shown/>` do guia quando existem)
+- Ajustes → **Abrir no último canal assistido** (liga/desliga)
+- Correção: ao voltar para a tela inicial a prévia do Guia não continua tocando; na TV/TV
+  Box o botão "início" do controle para o vídeo (sem janela flutuante escondida com som)
+- Android TV / TV Box testado só com o controle remoto (emulador oficial Android TV):
+  - player ao vivo: ◀/▶ abrem a barra de controles e as setas/OK agora andam e acionam os botões
+    (antes o player "engolia" as teclas e qualidade, áudio, legenda, formato e multi-tela ficavam
+    inalcançáveis sem tecla MENU); barra fica 7 s na tela; Voltar fecha a barra
+  - foco não "pula" mais para o outro lado da tela (fim de fileiras, menu do topo, botões das pontas)
+  - textos e botões dentro da área segura da TV (overscan: 48dp nas laterais, 27dp em cima/embaixo)
+- Segurança (testada no aparelho, inclusive com root): catálogo e guia cifrados, PIN cifrado com bloqueio
+  após 5 erros, tela segura em todas as telas, sem links da lista no log do sistema, senha/PIN ocultos
+  para serviços de acessibilidade — relatório completo em [docs/SEGURANCA.md](docs/SEGURANCA.md)
 
 **1.4.0 — tela inicial com esportes, novidades e validade**
 - Rodapé **Eventos esportivos**: jogos e transmissões encontrados no guia (EPG) da lista,

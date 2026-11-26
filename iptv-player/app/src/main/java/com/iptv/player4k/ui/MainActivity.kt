@@ -81,6 +81,10 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        // TV: barra do topo e conteúdo das seções dentro da área segura
+        TvSafeArea.pad(b.appBar, left = 40, top = 27, right = 56)
+        TvSafeArea.pad(b.contentFrame, left = 40, right = 40, bottom = 27)
+
         setSupportActionBar(b.toolbar)
         // voltar na tela principal: pergunta antes de sair
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
@@ -101,6 +105,8 @@ class MainActivity : AppCompatActivity() {
             setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, length, 0)
             setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
         }
+        // tela recriada pelo sistema: não reabre o último canal de novo
+        if (savedInstanceState != null) vm.autoStartDone = true
         setupTabs(savedInstanceState?.getInt(KEY_TAB) ?: vm.currentTab)
         setupHome()
         showSection(savedInstanceState?.getInt(KEY_SECTION) ?: vm.section)
@@ -112,6 +118,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { vm.state.collect(::render) }
+                launch { vm.state.collect { maybeStartLastChannel(it) } }
                 launch { kotlinx.coroutines.flow.combine(vm.state, vm.library, vm.contentVersion) { s, l, _ -> s to l }.collect { (s, l) -> renderHome(s, l) } }
                 launch { kotlinx.coroutines.flow.combine(vm.account, vm.state) { a, _ -> a }.collect(::renderExpiry) }
                 launch { kotlinx.coroutines.flow.combine(vm.kids, vm.library) { k, l -> k to l }.collect { (k, l) -> renderKidsCount(k, l) } }
@@ -224,6 +231,10 @@ class MainActivity : AppCompatActivity() {
         h.rvHomeSports.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.RecyclerView.HORIZONTAL, false)
         h.rvHomeSports.adapter = sportsAdapter
         h.rvHomeSports.itemAnimator = null
+        // TV: textos e botões dentro da área segura (48dp nas laterais, 27dp em cima/embaixo)
+        TvSafeArea.pad(h.homeHeader, left = 20, top = 13, right = 20)
+        TvSafeArea.pad(h.homeScrollContent, left = 20, right = 20)
+        TvSafeArea.pad(h.homeSports, left = 20, right = 20, bottom = 17)
         h.btnHomeLists.setOnClickListener { guarded { showPlaylistPicker() } }
         h.btnHomeRefresh.setOnClickListener { vm.refresh() }
         h.btnHomeSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
@@ -234,6 +245,8 @@ class MainActivity : AppCompatActivity() {
         val h = b.home
         h.tvHomeList.text = s.playlist?.name ?: ""
         if (s.playlist == null) {
+            h.tvHomeRecent.isVisible = false
+            h.rvHomeRecent.isVisible = false
             listOf(h.tvCountLive, h.tvCountMovies, h.tvCountSeries, h.tvCountKids).forEach { it.setText(R.string.home_add_list) }
             return
         }
@@ -318,6 +331,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * "Abrir no último canal assistido": assim que a lista carrega (só na abertura do app),
+     * toca o último canal ao vivo. Respeita o controle dos pais (canal bloqueado não abre).
+     */
+    private fun maybeStartLastChannel(s: UiState) {
+        if (vm.autoStartDone || s.playlist == null) return
+        if (!vm.store.startLastChannel) { vm.autoStartDone = true; return }
+        if (s.totalCount == 0) { if (!s.loading && s.error != null) vm.autoStartDone = true; return }
+        vm.autoStartDone = true
+        val url = vm.store.recents(s.playlist.id).firstOrNull() ?: return
+        val live = com.iptv.player4k.data.Session.live
+        val ch = live.firstOrNull { it.url == url } ?: return
+        val group = live.filter { it.group == ch.group }
+        com.iptv.player4k.data.PlaybackQueue.set(s.playlist, group)
+        startActivity(
+            Intent(this, com.iptv.player4k.player.PlayerActivity::class.java)
+                .putExtra(com.iptv.player4k.player.PlayerActivity.EXTRA_INDEX, group.indexOf(ch).coerceAtLeast(0))
+        )
+    }
+
     /** Evento ao vivo: abre direto no canal. Próximo: avisa quando começa. */
     private fun openSportEvent(e: com.iptv.player4k.epg.SportEvent) {
         val p = e.programme
@@ -364,6 +397,11 @@ class MainActivity : AppCompatActivity() {
         b.appBar.isVisible = !home
         b.contentFrame.isVisible = !home
         if (home) {
+            // esconde de verdade a tela da seção: a prévia do Guia (e qualquer vídeo) para de tocar
+            val fm = supportFragmentManager
+            val tx = fm.beginTransaction().setReorderingAllowed(true)
+            fm.fragments.filter { it.tag?.startsWith("tab") == true && !it.isHidden }.forEach { tx.hide(it) }
+            tx.commitAllowingStateLoss()
             val card = when (previous) {
                 SECTION_MOVIES -> b.home.cardMovies
                 SECTION_SERIES -> b.home.cardSeries
@@ -421,25 +459,56 @@ class MainActivity : AppCompatActivity() {
     private fun homeKey(code: Int): Boolean {
         val h = b.home
         val focused = currentFocus ?: return false
-        if (code == android.view.KeyEvent.KEYCODE_DPAD_DOWN && isInside(focused, h.homeScroll)) {
-            val next = android.view.FocusFinder.getInstance().findNextFocus(h.homeScroll, focused, android.view.View.FOCUS_DOWN)
-            if (next != null && next !== focused) return false
-            return focusRow(h.rvHomeSports)
-        }
-        if (code == android.view.KeyEvent.KEYCODE_DPAD_UP && isInside(focused, h.rvHomeSports)) {
-            if (h.rvHomeRecent.isVisible && focusRow(h.rvHomeRecent)) return true
-            return (if (resources.getBoolean(R.bool.wide_layout)) h.cardMovies else h.cardSeries).requestFocus()
+        when (code) {
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> if (isInside(focused, h.homeScroll)) {
+                val next = android.view.FocusFinder.getInstance().findNextFocus(h.homeScroll, focused, android.view.View.FOCUS_DOWN)
+                if (next != null && next !== focused) return false
+                return focusNearest(h.rvHomeSports, focused)
+            }
+            android.view.KeyEvent.KEYCODE_DPAD_UP -> if (isInside(focused, h.rvHomeSports)) {
+                if (h.rvHomeRecent.isVisible && focusNearest(h.rvHomeRecent, focused)) return true
+                return nearestOf(listOf(h.cardLive, h.cardMovies, h.cardSeries, h.cardKids), focused)?.requestFocus() == true
+            }
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                // nas fileiras, ◀/▶ no começo/fim não "foge" para outra fileira
+                for (rv in listOf(h.rvHomeSports, h.rvHomeRecent)) {
+                    if (!isInside(focused, rv)) continue
+                    val dir = if (code == android.view.KeyEvent.KEYCODE_DPAD_LEFT) android.view.View.FOCUS_LEFT else android.view.View.FOCUS_RIGHT
+                    val next = android.view.FocusFinder.getInstance().findNextFocus(rv, focused, dir)
+                    if (next == null) {
+                        val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return true
+                        val pos = rv.getChildAdapterPosition(rv.findContainingItemView(focused) ?: return true)
+                        val target = pos + if (dir == android.view.View.FOCUS_RIGHT) 1 else -1
+                        // ainda há itens fora da tela: rola até ele e foca
+                        if (target in 0 until (rv.adapter?.itemCount ?: 0)) {
+                            rv.scrollToPosition(target)
+                            rv.post { lm.findViewByPosition(target)?.requestFocus() }
+                        }
+                        return true
+                    }
+                }
+            }
         }
         return false
     }
 
-    /** Foca o primeiro item visível de uma fileira (rolando a tela até ela). */
-    private fun focusRow(rv: androidx.recyclerview.widget.RecyclerView): Boolean {
-        if (!rv.isVisible || rv.adapter?.itemCount == 0) return false
-        val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return false
-        val pos = lm.findFirstCompletelyVisibleItemPosition().takeIf { it >= 0 } ?: lm.findFirstVisibleItemPosition().coerceAtLeast(0)
-        val v = lm.findViewByPosition(pos) ?: return false
-        return v.requestFocus()
+    /** Foca o item da fileira mais próximo (na horizontal) do item focado agora. */
+    private fun focusNearest(rv: androidx.recyclerview.widget.RecyclerView, from: android.view.View): Boolean {
+        if (!rv.isVisible || rv.childCount == 0) return false
+        val items = (0 until rv.childCount).map { rv.getChildAt(it) }.filter { it.isFocusable && it.isShown }
+        return nearestOf(items, from)?.requestFocus() == true
+    }
+
+    private fun nearestOf(views: List<android.view.View>, from: android.view.View): android.view.View? {
+        val fx = centerX(from)
+        val screenW = resources.displayMetrics.widthPixels
+        return views.filter { val r = android.graphics.Rect(); it.getGlobalVisibleRect(r) && r.width() > 0 && r.left < screenW }
+            .minByOrNull { kotlin.math.abs(centerX(it) - fx) }
+    }
+
+    private fun centerX(v: android.view.View): Int {
+        val loc = IntArray(2); v.getLocationOnScreen(loc)
+        return loc[0] + v.width / 2
     }
 
     private fun isInside(v: android.view.View, parent: android.view.ViewGroup): Boolean {
@@ -597,6 +666,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPlaylistDialog(existing: Playlist?) {
         val db = DialogPlaylistBinding.inflate(layoutInflater)
+        com.iptv.player4k.security.SecureField.protect(db.etPass)
         dialogBinding = db
         pickedUri = existing?.sourceUri?.takeIf { it.isNotBlank() }?.let(Uri::parse)
 

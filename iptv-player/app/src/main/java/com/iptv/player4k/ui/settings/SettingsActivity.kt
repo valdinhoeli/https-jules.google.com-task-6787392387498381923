@@ -41,6 +41,9 @@ class SettingsActivity : AppCompatActivity() {
             v.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
             insets
         }
+        // TV: área segura (48dp nas laterais, 27dp em cima/embaixo)
+        com.iptv.player4k.ui.TvSafeArea.pad(b.toolbar, left = 24, top = 18, right = 24)
+        com.iptv.player4k.ui.TvSafeArea.pad(b.container, left = 32, right = 32, bottom = 27)
         b.toolbar.setTitle(R.string.settings_title)
         b.toolbar.setNavigationIcon(R.drawable.ic_arrow_back)
         b.toolbar.setNavigationOnClickListener { finish() }
@@ -52,6 +55,7 @@ class SettingsActivity : AppCompatActivity() {
         c.removeAllViews()
 
         header(R.string.sec_playback)
+        switch(R.drawable.ic_play, R.string.set_start_last, R.string.set_start_last_sum, store.startLastChannel) { store.startLastChannel = it }
         switch(R.drawable.ic_hq, R.string.set_force_max, R.string.set_force_max_sum, store.forceMaxQuality) { store.forceMaxQuality = it }
         switch(R.drawable.ic_refresh, R.string.set_large_buffer, R.string.set_large_buffer_sum, store.largeBuffer) { store.largeBuffer = it }
         switch(R.drawable.ic_tv, R.string.set_match_display, R.string.set_match_display_sum, store.matchDisplayMode) { store.matchDisplayMode = it }
@@ -95,7 +99,7 @@ class SettingsActivity : AppCompatActivity() {
             chooseDns()
         }
         info(R.string.sec_dns_info)
-        switch(R.drawable.ic_screenshot_off, R.string.sec_screenshot, R.string.sec_screenshot_sum, store.secureScreen, needsPin = store.hasPin) {
+        switch(R.drawable.ic_screenshot_off, R.string.sec_screenshot, R.string.sec_screenshot_sum, store.secureScreen, needsPin = true) {
             store.secureScreen = it
             SecureScreen.apply(this)
         }
@@ -194,6 +198,14 @@ class SettingsActivity : AppCompatActivity() {
         b.container.addView(tv)
     }
 
+    /** Controle remoto: ◀/▶ não pulam para outra linha; nome do item para leitores de tela. */
+    private fun tvRow(v: View, title: String) {
+        v.id = View.generateViewId()
+        v.nextFocusLeftId = v.id
+        v.nextFocusRightId = v.id
+        v.contentDescription = title
+    }
+
     private fun row(icon: Int, title: String, summary: String, clickable: Boolean = true, onClick: () -> Unit) {
         val r = ItemSettingBinding.inflate(layoutInflater, b.container, false)
         r.ivIcon.setImageResource(icon)
@@ -201,6 +213,7 @@ class SettingsActivity : AppCompatActivity() {
         r.tvSummary.text = summary
         r.tvSummary.isVisible = summary.isNotEmpty()
         if (clickable) r.root.setOnClickListener { onClick() } else { r.root.isClickable = false; r.root.isFocusable = false }
+        tvRow(r.root, title)
         b.container.addView(r.root)
     }
 
@@ -220,6 +233,7 @@ class SettingsActivity : AppCompatActivity() {
             }
             if (needsPin) withPin(apply) else apply()
         }
+        tvRow(r.root, getString(title))
         b.container.addView(r.root)
     }
 }

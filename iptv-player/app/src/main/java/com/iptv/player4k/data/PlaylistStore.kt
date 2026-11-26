@@ -175,6 +175,11 @@ class PlaylistStore(context: Context) {
         get() = prefs.getBoolean("set_match_display", false)
         set(v) = prefs.edit().putBoolean("set_match_display", v).apply()
 
+    /** Ao abrir o app, começa a tocar o último canal ao vivo assistido. */
+    var startLastChannel: Boolean
+        get() = prefs.getBoolean("set_start_last", false)
+        set(v) = prefs.edit().putBoolean("set_start_last", v).apply()
+
     var pipEnabled: Boolean
         get() = prefs.getBoolean("set_pip", true)
         set(v) = prefs.edit().putBoolean("set_pip", v).apply()
@@ -203,7 +208,7 @@ class PlaylistStore(context: Context) {
         val stored = if (prefs.contains(K_PIN_SECURE)) getSecure(K_PIN_SECURE) else prefs.getString("pin", null)
         val ok = Pin.verify(pin, stored)
         if (ok) {
-            prefs.edit().remove(K_PIN_FAILS).remove(K_PIN_LOCK).apply()
+            prefs.edit().remove(K_PIN_FAILS).remove(K_PIN_LOCK).remove(K_PIN_LOCK_WALL).apply()
             // migra o formato antigo para o cifrado
             if (!prefs.contains(K_PIN_SECURE)) setPin(pin)
         } else {
