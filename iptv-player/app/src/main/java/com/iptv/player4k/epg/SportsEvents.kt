@@ -132,8 +132,8 @@ object SportsEvents {
         epg: EpgData,
         now: Long = System.currentTimeMillis(),
         horizonMs: Long = 24 * 3_600_000L,
-        maxLive: Int = 30,
-        maxUpcoming: Int = 30,
+        maxLive: Int = 100,
+        maxUpcoming: Int = 60,
     ): List<SportEvent> {
         class Cand(val ch: Channel, val p: Programme, val key: String)
         val cands = ArrayList<Cand>()

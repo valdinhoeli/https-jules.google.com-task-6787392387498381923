@@ -27,7 +27,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.7.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.7.1.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -43,6 +43,13 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.7.1 — teste com 1000 canais, 1000 filmes e 1000 séries**
+- Teste de funcionamento completo na Android TV e no celular: 27 de 27 verificações passaram —
+  relatório em [docs/TESTE-1000.md](docs/TESTE-1000.md) (painel simulado em `tools/mock_xtream_1000.py`)
+- Correção: a busca de canais procura na lista inteira (antes, dentro de um grupo, não achava canais de
+  outros grupos)
+- Correção: o rodapé/aba de esportes mostra até 100 jogos ao vivo (antes parava em 30)
 
 **1.7.0 — mais fluido e tela inicial configurável**
 - Ajustes → **Tela inicial**: ligar/desligar o rodapé **Eventos esportivos ao vivo** e a fileira

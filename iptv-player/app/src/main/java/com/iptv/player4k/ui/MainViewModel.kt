@@ -507,7 +507,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         filterJob?.cancel()
         filterJob = viewModelScope.launch {
             val result = withContext(Dispatchers.Default) {
-                val base: List<Channel> = when (s.selectedGroup) {
+                val q0 = Text.normalize(s.query.trim())
+                // com busca: procura em todos os canais (dentro de um grupo, digitar o nome de um canal
+                // de outro grupo não achava nada)
+                val base: List<Channel> = if (q0.isNotEmpty()) live else when (s.selectedGroup) {
                     GROUP_ALL -> live
                     GROUP_FAV -> live.filter { it.url in s.favorites }
                     GROUP_RECENT -> store.recents(p.id).mapNotNull { byUrl[it] }
