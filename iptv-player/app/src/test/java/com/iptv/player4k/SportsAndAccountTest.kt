@@ -87,6 +87,34 @@ class SportsAndAccountTest {
     }
 
     @Test
+    fun ignoresSportsMoviesOnMovieChannels() {
+        val now = 1_000_000_000_000L
+        val h = 3_600_000L
+        val cine = Channel("Telecine Action HD", "t", tvgId = "t", group = "Filmes")
+        val hbo = Channel("HBO 2", "h", tvgId = "h", group = "Canais")
+        val tntSports = Channel("TNT Sports HD", "s", tvgId = "s", group = "Canais")
+        val globo = Channel("Globo SP", "g", tvgId = "g", group = "Abertos")
+        assertTrue(SportsEvents.isMovieChannel(cine))
+        assertTrue(SportsEvents.isMovieChannel(hbo))
+        assertFalse(SportsEvents.isMovieChannel(tntSports))
+        assertFalse(SportsEvents.isMovieChannel(globo))
+        val epg = EpgData(
+            mapOf(
+                "t" to listOf(Programme(now - h, now + h, "Rocky x Drago: A Luta Final", null)),
+                "h" to listOf(Programme(now - h, now + h, "Creed: Boxe ao Vivo x Campeão", null)),
+                "s" to listOf(Programme(now - h, now + h, "Champions League: Real Madrid x City", null)),
+                // canal aberto passando filme de futebol marcado como filme no guia
+                "g" to listOf(Programme(now - h, now + h, "Gol! O Sonho: Futebol x Destino", null, Programme.FILM)),
+            ),
+            emptyMap(), now,
+        )
+        val ev = SportsEvents.find(listOf(cine, hbo, tntSports, globo), epg, now)
+        assertEquals(listOf("Champions League: Real Madrid x City"), ev.map { it.programme.title })
+        assertTrue(SportsEvents.isFilmCategory("Filme / Ação"))
+        assertTrue(SportsEvents.isNovelaCategory("Novela"))
+    }
+
+    @Test
     fun parsesXtreamAccount() {
         val now = 1_700_000_000_000L
         val info = AccountInfo.parseXtream(

@@ -15,6 +15,8 @@ class Programme(
     val isLiveBroadcast get() = flags and LIVE != 0
     val isRerun get() = flags and RERUN != 0
     val isSport get() = flags and SPORT != 0
+    val isFilm get() = flags and FILM != 0
+    val isNovela get() = flags and NOVELA != 0
 
     companion object {
         /** <live/>: transmissão ao vivo */
@@ -25,6 +27,10 @@ class Programme(
         const val PREMIERE = 4
         /** <category> de esporte */
         const val SPORT = 8
+        /** <category> de filme ou série (ficção) */
+        const val FILM = 16
+        /** <category> de novela */
+        const val NOVELA = 32
     }
 
     fun isLive(t: Long = System.currentTimeMillis()) = t in start until stop

@@ -53,6 +53,31 @@ object SportsEvents {
 
     fun isSportCategory(s: String?): Boolean = s != null && sportCategory.containsMatchIn(Text.normalize(s))
 
+    private val filmCategory = Regex(
+        """(?<![a-z])(filme|filmes|film|films|movie|movies|cinema|longa|longa-metragem|serie|series|seriado|""" +
+            """drama|comedia|comedy|acao|action|aventura|adventure|suspense|thriller|terror|horror|ficcao|""" +
+            """romance|animacao|animation|biografia|biography)(?![a-z])"""
+    )
+    private val novelaCategory = Regex("""(?<![a-z])(novela|novelas|telenovela|telenovelas|soap|soap opera|soaps)(?![a-z])""")
+
+    fun isFilmCategory(s: String?): Boolean = s != null && filmCategory.containsMatchIn(Text.normalize(s))
+    fun isNovelaCategory(s: String?): Boolean = s != null && novelaCategory.containsMatchIn(Text.normalize(s))
+
+    /**
+     * Canais de filmes/séries (Telecine, HBO, Cine…): passam filmes sobre esporte ("Rocky", "Creed")
+     * que não são eventos. Canal que também é de esporte (TNT Sports, Fox Sports) não entra aqui.
+     */
+    private val movieChannel = Regex(
+        """(?<![a-z])(filme|filmes|film|films|movie|movies|cine|cinema|cinemax|telecine|megapix|hbo|max|paramount|""" +
+            """universal|warner|tnt|space|axn|sony|amc|tcm|studio|fx|star|lifetime|a&e|syfy|series|serie|seriados|""" +
+            """canal brasil|prime video|netflix|starz|showtime|mgm|lionsgate|filmin|cinecanal|golden|tnt series|""" +
+            """lancamentos|estreias)(?![a-z])"""
+    )
+
+    fun isMovieChannel(ch: Channel): Boolean =
+        !isSportsChannel(ch) &&
+            (movieChannel.containsMatchIn(Text.normalize(ch.group)) || movieChannel.containsMatchIn(Text.normalize(ch.name)))
+
     fun isSportsChannel(ch: Channel): Boolean =
         sportChannel.containsMatchIn(Text.normalize(ch.group)) || sportChannel.containsMatchIn(Text.normalize(ch.name))
 
@@ -118,9 +143,13 @@ object SportsEvents {
             val list = epg.programmes(ch)
             if (list.isEmpty()) continue
             val sports = isSportsChannel(ch)
+            // canal de filmes/séries: o "jogo" ali é filme (Rocky, Creed, Duelo de Titãs…)
+            if (!sports && isMovieChannel(ch)) continue
             for (p in list) {
                 if (p.start > now + horizonMs) break
                 if (p.stop - p.start < 10 * 60_000L) continue
+                // o guia diz que é filme/série (e não esporte): não é evento ao vivo
+                if (p.isFilm && !p.isSport && !p.isLiveBroadcast) continue
                 if (!isEvent(p, sports)) continue
                 val key = eventKey(p.title)
                 val prev = firstAir[key]

@@ -85,8 +85,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val epg: StateFlow<EpgState> = _epg
 
     /** Conteúdo infantil da lista (aba KIDS), já com o controle dos pais. */
-    private val _kids = MutableStateFlow(com.iptv.player4k.data.KidsContent.EMPTY)
-    val kids: StateFlow<com.iptv.player4k.data.KidsContent> = _kids
+    private val _kids = MutableStateFlow(com.iptv.player4k.data.ThemeContent.EMPTY)
+    val kids: StateFlow<com.iptv.player4k.data.ThemeContent> = _kids
+    /** ESPORTES e NOVELAS (mesma ideia do KIDS) */
+    private val _sportsTheme = MutableStateFlow(com.iptv.player4k.data.ThemeContent.EMPTY)
+    val sportsTheme: StateFlow<com.iptv.player4k.data.ThemeContent> = _sportsTheme
+    private val _novelas = MutableStateFlow(com.iptv.player4k.data.ThemeContent.EMPTY)
+    val novelas: StateFlow<com.iptv.player4k.data.ThemeContent> = _novelas
     private var kidsJob: Job? = null
 
     private val _account = MutableStateFlow(AccountState())
@@ -177,7 +182,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _account.value = AccountState()
         _sports.value = null
         kidsJob?.cancel()
-        _kids.value = com.iptv.player4k.data.KidsContent.EMPTY
+        _kids.value = com.iptv.player4k.data.ThemeContent.EMPTY
+        _sportsTheme.value = com.iptv.player4k.data.ThemeContent.EMPTY
+        _novelas.value = com.iptv.player4k.data.ThemeContent.EMPTY
     }
 
     /**
@@ -380,14 +387,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val r = rules()
         kidsJob?.cancel()
         kidsJob = viewModelScope.launch {
-            _kids.value = withContext(Dispatchers.Default) {
-                val k = com.iptv.player4k.data.Kids.extract(channels, lib)
-                com.iptv.player4k.data.KidsContent(
-                    k.channels,
-                    k.movies.filter { !r.isBlocked(it.age, it.category) },
-                    k.series.filter { !r.isBlocked(it.age, it.category) },
+            fun allowed(t: com.iptv.player4k.data.ThemeContent) = com.iptv.player4k.data.ThemeContent(
+                t.channels,
+                t.movies.filter { !r.isBlocked(it.age, it.category) },
+                t.series.filter { !r.isBlocked(it.age, it.category) },
+            )
+            val (k, sp, nv) = withContext(Dispatchers.Default) {
+                Triple(
+                    allowed(com.iptv.player4k.data.Kids.extract(channels, lib)),
+                    allowed(com.iptv.player4k.data.Sports.extract(channels, lib)),
+                    allowed(com.iptv.player4k.data.Novelas.extract(channels, lib)),
                 )
             }
+            _kids.value = k; _sportsTheme.value = sp; _novelas.value = nv
         }
     }
 

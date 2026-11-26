@@ -25,7 +25,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.5.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.6.0.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -41,6 +41,17 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.6.0 — ESPORTES e NOVELAS**
+- Tela inicial com 6 cartões (grade 3×2 na TV, 2×3 no celular): TV AO VIVO, FILMES, SÉRIES,
+  KIDS, **ESPORTES** e **NOVELAS**
+- **ESPORTES** reúne tudo de esporte: jogos ao vivo agora e próximos (do guia), canais de esporte
+  (ESPN, SporTV, Premiere, TNT Sports…) e filmes/séries das categorias de esporte (Lutas, Futebol,
+  documentários esportivos). Jogo ao vivo abre direto no canal
+- **NOVELAS** reúne tudo de novela: novelas no ar agora em qualquer canal (pelo guia), canais de
+  novelas (Viva, TLNovelas…) e novelas do catálogo (turcas, mexicanas, bíblicas…, por categoria)
+- Correção: o rodapé "Eventos esportivos" não mostra mais canais de filmes passando filmes de esporte
+  (Telecine, HBO, Cine… com "Rocky", "Creed"); programas marcados como filme no guia também ficam de fora
 
 **1.5.0 — KIDS, esportes só ao vivo, último canal e segurança**
 - Cartão **KIDS** na tela inicial: canais, filmes e séries infantis extraídos da lista

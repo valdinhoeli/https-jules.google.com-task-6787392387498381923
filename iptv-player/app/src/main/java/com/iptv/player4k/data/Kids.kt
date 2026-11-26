@@ -3,8 +3,8 @@ package com.iptv.player4k.data
 import com.iptv.player4k.security.AgeRating
 import com.iptv.player4k.util.Text
 
-/** Conteúdo infantil extraído da lista (canais, filmes e séries). */
-class KidsContent(
+/** Conteúdo de um tema (KIDS, ESPORTES, NOVELAS) extraído da lista: canais, filmes e séries. */
+class ThemeContent(
     val channels: List<Channel>,
     val movies: List<VodItem>,
     val series: List<SeriesItem>,
@@ -13,9 +13,11 @@ class KidsContent(
     val titles get() = movies.size + series.size
 
     companion object {
-        val EMPTY = KidsContent(emptyList(), emptyList(), emptyList())
+        val EMPTY = ThemeContent(emptyList(), emptyList(), emptyList())
     }
 }
+
+typealias KidsContent = ThemeContent
 
 /**
  * Identifica o que é infantil pelo grupo/categoria/gênero e por nomes de canais e marcas
@@ -65,9 +67,54 @@ object Kids {
         !blocked(s.age, s.category, s.name, s.genre) &&
             (match(kidsGroup, s.category) || match(kidsGroup, s.genre) || match(kidsTitle, s.name))
 
-    fun extract(live: List<Channel>, lib: Library): KidsContent = KidsContent(
+    fun extract(live: List<Channel>, lib: Library): ThemeContent = ThemeContent(
         live.filter { isKidsChannel(it) },
         lib.movies.filter { isKidsMovie(it) },
         lib.series.filter { isKidsSeries(it) },
+    )
+}
+
+/** ESPORTES: canais de esporte e filmes/séries das categorias de esporte (lutas, futebol, F1…). */
+object Sports {
+    private val sportsVod = Regex(
+        """(?<![a-z0-9])(esporte|esportes|esportivo|esportivos|sport|sports|futebol|football|soccer|ufc|mma|wwe|""" +
+            """luta|lutas|boxe|boxing|fight|fights|f1|formula 1|motogp|nba|nfl|copa do mundo|olimpiadas|""" +
+            """olimpicos|jogos olimpicos|surf|skate|tenis|volei|basquete)(?![a-z0-9])"""
+    )
+    private fun adult(vararg t: String?) = t.any { AgeRating.isAdult(it) }
+    private fun match(s: String?) = !s.isNullOrBlank() && sportsVod.containsMatchIn(Text.normalize(s))
+
+    fun isSportsChannel(ch: Channel) = !adult(ch.group, ch.name) && com.iptv.player4k.epg.SportsEvents.isSportsChannel(ch)
+    fun isSportsMovie(m: VodItem) = !adult(m.category, m.name) && match(m.category)
+    fun isSportsSeries(s: SeriesItem) = !adult(s.category, s.name) && (match(s.category) || match(s.genre))
+
+    fun extract(live: List<Channel>, lib: Library) = ThemeContent(
+        live.filter { isSportsChannel(it) },
+        lib.movies.filter { isSportsMovie(it) },
+        lib.series.filter { isSportsSeries(it) },
+    )
+}
+
+/** NOVELAS: canais de novelas (Viva, TLNovelas…) e novelas do catálogo (turcas, mexicanas, bíblicas…). */
+object Novelas {
+    private val novelaWord = Regex("""(?<![a-z0-9])(novela|novelas|telenovela|telenovelas|soap|soaps)(?![a-z0-9])""")
+    private val novelaChannel = Regex(
+        """^(canal )?viva( hd| fhd| sd| 4k| br)?$|(?<![a-z0-9])(tlnovelas|tl novelas|tv novelas|globoplay novelas|""" +
+            """canal viva|novelas 24h|rede viva)(?![a-z0-9])"""
+    )
+    private fun adult(vararg t: String?) = t.any { AgeRating.isAdult(it) }
+    private fun match(re: Regex, s: String?) = !s.isNullOrBlank() && re.containsMatchIn(Text.normalize(s).trim())
+
+    fun isNovelaChannel(ch: Channel) = !adult(ch.group, ch.name) &&
+        (match(novelaWord, ch.group) || match(novelaWord, ch.name) || match(novelaChannel, ch.name))
+    fun isNovelaTitle(title: String?) = match(novelaWord, title)
+    fun isNovelaMovie(m: VodItem) = !adult(m.category, m.name) && match(novelaWord, m.category)
+    fun isNovelaSeries(s: SeriesItem) = !adult(s.category, s.name) &&
+        (match(novelaWord, s.category) || match(novelaWord, s.genre) || match(novelaWord, s.name))
+
+    fun extract(live: List<Channel>, lib: Library) = ThemeContent(
+        live.filter { isNovelaChannel(it) },
+        lib.movies.filter { isNovelaMovie(it) },
+        lib.series.filter { isNovelaSeries(it) },
     )
 }

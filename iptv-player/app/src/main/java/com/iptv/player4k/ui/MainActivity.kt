@@ -122,6 +122,10 @@ class MainActivity : AppCompatActivity() {
                 launch { kotlinx.coroutines.flow.combine(vm.state, vm.library, vm.contentVersion) { s, l, _ -> s to l }.collect { (s, l) -> renderHome(s, l) } }
                 launch { kotlinx.coroutines.flow.combine(vm.account, vm.state) { a, _ -> a }.collect(::renderExpiry) }
                 launch { kotlinx.coroutines.flow.combine(vm.kids, vm.library) { k, l -> k to l }.collect { (k, l) -> renderKidsCount(k, l) } }
+                launch {
+                    kotlinx.coroutines.flow.combine(vm.sportsTheme, vm.novelas, vm.sports, vm.library) { sp, nv, ev, l -> arrayOf(sp, nv, ev, l) }
+                        .collect { renderThemeCounts() }
+                }
                 launch { kotlinx.coroutines.flow.combine(vm.sports, vm.epg) { s, e -> s to e }.collect { (s, e) -> renderSports(s, e) } }
                 launch {
                     vm.messages.collect { msg -> Snackbar.make(b.root, msg, Snackbar.LENGTH_LONG).show() }
@@ -210,7 +214,8 @@ class MainActivity : AppCompatActivity() {
         h.tvHomeBrand.text = android.text.SpannableStringBuilder("IPTV Player  4K").apply {
             setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
         }
-        listOf(h.cardLive to SECTION_LIVE, h.cardMovies to SECTION_MOVIES, h.cardSeries to SECTION_SERIES, h.cardKids to SECTION_KIDS).forEach { (card, sec) ->
+        listOf(h.cardLive to SECTION_LIVE, h.cardMovies to SECTION_MOVIES, h.cardSeries to SECTION_SERIES, h.cardKids to SECTION_KIDS,
+            h.cardSports to SECTION_SPORTS, h.cardNovelas to SECTION_NOVELAS).forEach { (card, sec) ->
             card.setOnClickListener {
                 if (vm.state.value.playlist == null) showPlaylistDialog(null) else showSection(sec)
             }
@@ -247,7 +252,8 @@ class MainActivity : AppCompatActivity() {
         if (s.playlist == null) {
             h.tvHomeRecent.isVisible = false
             h.rvHomeRecent.isVisible = false
-            listOf(h.tvCountLive, h.tvCountMovies, h.tvCountSeries, h.tvCountKids).forEach { it.setText(R.string.home_add_list) }
+            listOf(h.tvCountLive, h.tvCountMovies, h.tvCountSeries, h.tvCountKids, h.tvCountSports, h.tvCountNovelas)
+                .forEach { it.setText(R.string.home_add_list) }
             return
         }
         h.tvCountLive.text = if (s.loading && s.totalCount == 0) getString(R.string.home_loading)
@@ -264,7 +270,23 @@ class MainActivity : AppCompatActivity() {
         h.tvCountSeries.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_series_count, series, series)
     }
 
-    private fun renderKidsCount(k: com.iptv.player4k.data.KidsContent, lib: LibraryState) {
+    private fun themeCount(tv: android.widget.TextView, c: com.iptv.player4k.data.ThemeContent, live: Int = 0) {
+        val s = vm.state.value
+        if (s.playlist == null) { tv.setText(R.string.home_add_list); return }
+        if (c.isEmpty && live == 0 && (vm.library.value.loading || s.loading)) { tv.setText(R.string.home_loading); return }
+        val parts = ArrayList<String>(3)
+        if (live > 0) parts += getString(R.string.theme_count_live, live)
+        if (c.titles > 0 || (c.channels.isEmpty() && live == 0)) parts += resources.getQuantityString(R.plurals.kids_titles, c.titles, c.titles)
+        if (c.channels.isNotEmpty()) parts += resources.getQuantityString(R.plurals.channel_count, c.channels.size, c.channels.size)
+        tv.text = parts.take(2).joinToString(" · ")
+    }
+
+    private fun renderThemeCounts() {
+        themeCount(b.home.tvCountSports, vm.sportsTheme.value, vm.sports.value.orEmpty().count { it.live })
+        themeCount(b.home.tvCountNovelas, vm.novelas.value)
+    }
+
+    private fun renderKidsCount(k: com.iptv.player4k.data.ThemeContent, lib: LibraryState) {
         val tv = b.home.tvCountKids
         if (vm.state.value.playlist == null) { tv.setText(R.string.home_add_list); return }
         if (k.isEmpty && (lib.loading || vm.state.value.loading)) { tv.setText(R.string.home_loading); return }
@@ -352,27 +374,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Evento ao vivo: abre direto no canal. Próximo: avisa quando começa. */
-    private fun openSportEvent(e: com.iptv.player4k.epg.SportEvent) {
-        val p = e.programme
-        if (!e.live && p.start > System.currentTimeMillis()) {
-            val day = when (com.iptv.player4k.ui.home.SportsAdapter.dayOffset(p.start)) {
-                0 -> getString(R.string.sport_today_word)
-                1 -> getString(R.string.sport_tomorrow_word)
-                else -> java.text.SimpleDateFormat("EEEE", java.util.Locale("pt", "BR")).format(p.start)
-            }
-            Toast.makeText(this, getString(R.string.sport_starts, day, com.iptv.player4k.ui.home.SportsAdapter.time(p.start), e.channel.name), Toast.LENGTH_LONG).show()
-            return
-        }
-        // fila do player: canais do mesmo grupo (▲/▼ troca de canal); garante que o canal está nela
-        val group = com.iptv.player4k.data.Session.live.filter { it.group == e.channel.group }
-        val list = if (e.channel in group) group else listOf(e.channel)
-        com.iptv.player4k.data.PlaybackQueue.set(vm.state.value.playlist, list)
-        vm.addRecent(e.channel)
-        startActivity(
-            Intent(this, com.iptv.player4k.player.PlayerActivity::class.java)
-                .putExtra(com.iptv.player4k.player.PlayerActivity.EXTRA_INDEX, list.indexOf(e.channel).coerceAtLeast(0))
-        )
-    }
+    private fun openSportEvent(e: com.iptv.player4k.epg.SportEvent) =
+        com.iptv.player4k.ui.home.SportActions.open(this, vm, e)
 
     private fun openDetails(item: com.iptv.player4k.ui.vod.PosterItem) {
         startActivity(
@@ -406,6 +409,8 @@ class MainActivity : AppCompatActivity() {
                 SECTION_MOVIES -> b.home.cardMovies
                 SECTION_SERIES -> b.home.cardSeries
                 SECTION_KIDS -> b.home.cardKids
+                SECTION_SPORTS -> b.home.cardSports
+                SECTION_NOVELAS -> b.home.cardNovelas
                 else -> b.home.cardLive
             }
             card.post { card.requestFocus() }
@@ -414,7 +419,8 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.title = getString(
             when (sec) {
                 SECTION_MOVIES -> R.string.home_movies; SECTION_SERIES -> R.string.home_series
-                SECTION_KIDS -> R.string.home_kids; else -> R.string.home_live
+                SECTION_KIDS -> R.string.home_kids; SECTION_SPORTS -> R.string.home_sports_tab
+                SECTION_NOVELAS -> R.string.home_novelas; else -> R.string.home_live
             }
         )
         // Ao vivo: abas "Ao vivo" e "Guia"; Filmes/Séries: sem abas
@@ -428,6 +434,8 @@ class MainActivity : AppCompatActivity() {
         when {
             // KIDS não tem aba na barra: mostra a tela direto
             sec == SECTION_KIDS -> showTab(4)
+            sec == SECTION_SPORTS -> showTab(5)
+            sec == SECTION_NOVELAS -> showTab(6)
             b.tabs.selectedTabPosition != target -> b.tabs.getTabAt(target)?.select()
             else -> showTab(target)
         }
@@ -467,7 +475,7 @@ class MainActivity : AppCompatActivity() {
             }
             android.view.KeyEvent.KEYCODE_DPAD_UP -> if (isInside(focused, h.rvHomeSports)) {
                 if (h.rvHomeRecent.isVisible && focusNearest(h.rvHomeRecent, focused)) return true
-                return nearestOf(listOf(h.cardLive, h.cardMovies, h.cardSeries, h.cardKids), focused)?.requestFocus() == true
+                return nearestOf(listOf(h.cardKids, h.cardSports, h.cardNovelas).ifEmpty { listOf(h.cardLive) }, focused)?.requestFocus() == true
             }
             android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 // nas fileiras, ◀/▶ no começo/fim não "foge" para outra fileira
@@ -524,7 +532,9 @@ class MainActivity : AppCompatActivity() {
         1 -> VodFragment.newInstance(ContentKind.MOVIE)
         2 -> VodFragment.newInstance(ContentKind.SERIES)
         3 -> EpgFragment()
-        4 -> com.iptv.player4k.ui.kids.KidsFragment()
+        4 -> com.iptv.player4k.ui.kids.ThemeFragment.newInstance(com.iptv.player4k.ui.kids.ThemeFragment.Theme.KIDS)
+        5 -> com.iptv.player4k.ui.kids.ThemeFragment.newInstance(com.iptv.player4k.ui.kids.ThemeFragment.Theme.SPORTS)
+        6 -> com.iptv.player4k.ui.kids.ThemeFragment.newInstance(com.iptv.player4k.ui.kids.ThemeFragment.Theme.NOVELAS)
         else -> LiveFragment()
     }
 
@@ -590,7 +600,7 @@ class MainActivity : AppCompatActivity() {
         listOf(R.id.action_search, R.id.action_refresh, R.id.action_edit, R.id.action_delete, R.id.action_multiview)
             .forEach { menu.findItem(it)?.isVisible = has }
         // KIDS: sem busca (a tela já mostra todo o conteúdo infantil)
-        if (vm.section == SECTION_KIDS) menu.findItem(R.id.action_search)?.isVisible = false
+        if (vm.section >= SECTION_KIDS) menu.findItem(R.id.action_search)?.isVisible = false
         menu.findItem(R.id.action_lock)?.apply {
             isVisible = vm.store.hasPin && has
             val unlocked = ParentalSession.isUnlocked
@@ -797,5 +807,7 @@ class MainActivity : AppCompatActivity() {
         const val SECTION_MOVIES = 2
         const val SECTION_SERIES = 3
         const val SECTION_KIDS = 4
+        const val SECTION_SPORTS = 5
+        const val SECTION_NOVELAS = 6
     }
 }

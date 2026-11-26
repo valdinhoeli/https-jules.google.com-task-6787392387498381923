@@ -36,6 +36,11 @@ class SportsAdapter(private val onClick: (SportEvent) -> Unit) : RecyclerView.Ad
         }
         val vh = VH(v)
         v.root.setOnClickListener { items.getOrNull(vh.bindingAdapterPosition)?.let(onClick) }
+        // controle remoto: ▶ no último evento não pula para outra fileira
+        v.root.setOnKeyListener { _, code, ev ->
+            code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && ev.action == android.view.KeyEvent.ACTION_DOWN &&
+                vh.bindingAdapterPosition == items.lastIndex
+        }
         return vh
     }
 

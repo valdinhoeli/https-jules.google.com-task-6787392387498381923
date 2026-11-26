@@ -3,6 +3,8 @@ package com.iptv.player4k
 import com.iptv.player4k.data.Channel
 import com.iptv.player4k.data.Kids
 import com.iptv.player4k.data.Library
+import com.iptv.player4k.data.Novelas
+import com.iptv.player4k.data.Sports
 import com.iptv.player4k.data.SeriesItem
 import com.iptv.player4k.data.VodItem
 import org.junit.Assert.assertEquals
@@ -43,5 +45,26 @@ class KidsTest {
         assertEquals(listOf("Moana"), k.movies.map { it.name })
         assertEquals(1, k.series.size)
         assertEquals(listOf("Nick Jr"), k.channels.map { it.name })
+    }
+
+    @Test
+    fun sportsAndNovelas() {
+        assertTrue(Sports.isSportsChannel(Channel("ESPN 2 HD", "e", group = "Canais")))
+        assertTrue(Sports.isSportsChannel(Channel("Premiere Clubes", "p", group = "BR | Futebol")))
+        assertFalse(Sports.isSportsChannel(Channel("Telecine Action", "t", group = "Filmes")))
+        assertTrue(Sports.isSportsMovie(movie("Pelé", "Documentários Esportivos")))
+        assertTrue(Sports.isSportsMovie(movie("UFC 300", "Lutas")))
+        assertFalse(Sports.isSportsMovie(movie("Rocky", "Drama")))
+        assertTrue(Sports.isSportsSeries(series("Drive to Survive", "Séries", genre = "Esporte, Documentário")))
+
+        assertTrue(Novelas.isNovelaChannel(Channel("Viva HD", "v", group = "Variedades")))
+        assertTrue(Novelas.isNovelaChannel(Channel("Canal 9", "c", group = "Novelas")))
+        assertTrue(Novelas.isNovelaChannel(Channel("TLNovelas", "t", group = "Internacionais")))
+        assertFalse(Novelas.isNovelaChannel(Channel("Globo SP", "g", group = "Abertos")))
+        assertFalse(Novelas.isNovelaChannel(Channel("Canal Ao Vivo", "a", group = "Variedades")))
+        assertTrue(Novelas.isNovelaSeries(series("Força de Mulher", "Novelas Turcas")))
+        assertTrue(Novelas.isNovelaSeries(series("A Escrava Isaura", "Séries", genre = "Novela")))
+        assertFalse(Novelas.isNovelaSeries(series("Breaking Bad", "Drama")))
+        assertTrue(Novelas.isNovelaTitle("Novela das Nove: Amor Eterno"))
     }
 }

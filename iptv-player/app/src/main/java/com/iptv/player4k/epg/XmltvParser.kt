@@ -92,7 +92,12 @@ object XmltvParser {
                     "live" -> flags = flags or Programme.LIVE
                     "previously-shown" -> flags = flags or Programme.RERUN
                     "premiere", "new" -> flags = flags or Programme.PREMIERE
-                    "category" -> if (SportsEvents.isSportCategory(xpp.nextText())) flags = flags or Programme.SPORT
+                    "category" -> {
+                        val c = xpp.nextText()
+                        if (SportsEvents.isSportCategory(c)) flags = flags or Programme.SPORT
+                        if (SportsEvents.isFilmCategory(c)) flags = flags or Programme.FILM
+                        if (SportsEvents.isNovelaCategory(c)) flags = flags or Programme.NOVELA
+                    }
                 }
             }
         }

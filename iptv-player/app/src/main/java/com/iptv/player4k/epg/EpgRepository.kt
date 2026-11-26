@@ -162,7 +162,7 @@ class EpgRepository(private val context: Context) {
 
     companion object {
         private val memo = java.util.concurrent.ConcurrentHashMap<String, EpgData>()
-        private const val VERSION = 4
+        private const val VERSION = 5
         private const val TTL = 12 * 60 * 60 * 1000L
         private const val BEFORE = 3 * 60 * 60 * 1000L
         private const val AFTER = 36 * 60 * 60 * 1000L

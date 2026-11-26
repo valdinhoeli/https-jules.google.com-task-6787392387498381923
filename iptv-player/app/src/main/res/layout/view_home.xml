@@ -135,11 +135,11 @@
 
             <FrameLayout
                 android:id="@+id/cardLive"
-            android:nextFocusLeft="@id/cardLive"
                 android:layout_width="0dp"
-                android:layout_height="118dp"
+                android:layout_height="104dp"
                 android:layout_margin="6dp"
                 android:layout_weight="1"
+                android:nextFocusLeft="@id/cardLive"
                 android:background="@drawable/bg_home_live"
                 android:clickable="true"
                 android:focusable="true"
@@ -153,8 +153,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="38dp"
-                        android:layout_height="38dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_tv"
                         app:tint="@android:color/white" />
@@ -162,12 +162,12 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="4dp"
                         android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:text="@string/home_live"
                         android:textColor="@android:color/white"
-                        android:textSize="19sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -182,11 +182,11 @@
 
             <FrameLayout
                 android:id="@+id/cardMovies"
-            android:nextFocusRight="@id/cardMovies"
                 android:layout_width="0dp"
-                android:layout_height="118dp"
+                android:layout_height="104dp"
                 android:layout_margin="6dp"
                 android:layout_weight="1"
+                android:nextFocusRight="@id/cardMovies"
                 android:background="@drawable/bg_home_movies"
                 android:clickable="true"
                 android:focusable="true"
@@ -200,8 +200,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="38dp"
-                        android:layout_height="38dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_movie"
                         app:tint="@android:color/white" />
@@ -209,12 +209,12 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="4dp"
                         android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:text="@string/home_movies"
                         android:textColor="@android:color/white"
-                        android:textSize="19sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -235,11 +235,11 @@
 
             <FrameLayout
                 android:id="@+id/cardSeries"
-            android:nextFocusLeft="@id/cardSeries"
                 android:layout_width="0dp"
-                android:layout_height="118dp"
+                android:layout_height="104dp"
                 android:layout_margin="6dp"
                 android:layout_weight="1"
+                android:nextFocusLeft="@id/cardSeries"
                 android:background="@drawable/bg_home_series"
                 android:clickable="true"
                 android:focusable="true"
@@ -253,8 +253,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="38dp"
-                        android:layout_height="38dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_series"
                         app:tint="@android:color/white" />
@@ -262,12 +262,12 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="4dp"
                         android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:text="@string/home_series"
                         android:textColor="@android:color/white"
-                        android:textSize="19sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -282,11 +282,11 @@
 
             <FrameLayout
                 android:id="@+id/cardKids"
-            android:nextFocusRight="@id/cardKids"
                 android:layout_width="0dp"
-                android:layout_height="118dp"
+                android:layout_height="104dp"
                 android:layout_margin="6dp"
                 android:layout_weight="1"
+                android:nextFocusRight="@id/cardKids"
                 android:background="@drawable/bg_home_kids"
                 android:clickable="true"
                 android:focusable="true"
@@ -300,8 +300,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="38dp"
-                        android:layout_height="38dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_child"
                         app:tint="@android:color/white" />
@@ -309,16 +309,116 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="4dp"
                         android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:text="@string/home_kids"
                         android:textColor="@android:color/white"
-                        android:textSize="19sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tvCountKids"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:maxLines="1"
+                        android:textColor="#E6FFFFFF"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:id="@+id/cardSports"
+                android:layout_width="0dp"
+                android:layout_height="104dp"
+                android:layout_margin="6dp"
+                android:layout_weight="1"
+                android:nextFocusLeft="@id/cardSports"
+                android:background="@drawable/bg_home_sports"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="@drawable/fg_home_card">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_sports"
+                        app:tint="@android:color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:letterSpacing="0.04"
+                        android:maxLines="1"
+                        android:text="@string/home_sports_tab"
+                        android:textColor="@android:color/white"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvCountSports"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:maxLines="1"
+                        android:textColor="#E6FFFFFF"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/cardNovelas"
+                android:layout_width="0dp"
+                android:layout_height="104dp"
+                android:layout_margin="6dp"
+                android:layout_weight="1"
+                android:nextFocusRight="@id/cardNovelas"
+                android:background="@drawable/bg_home_novelas"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="@drawable/fg_home_card">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_novelas"
+                        app:tint="@android:color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:letterSpacing="0.04"
+                        android:maxLines="1"
+                        android:text="@string/home_novelas"
+                        android:textColor="@android:color/white"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvCountNovelas"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:maxLines="1"
