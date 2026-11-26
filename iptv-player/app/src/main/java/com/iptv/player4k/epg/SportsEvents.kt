@@ -123,19 +123,16 @@ object SportsEvents {
         return core.replace(Regex("[^a-z0-9x ]"), " ").replace(Regex("\\s+"), " ").trim()
     }
 
+    /** Evento candidato do guia (já classificado: é jogo/transmissão e não é reprise pelo texto). */
+    class Cand(val ch: Channel, val p: Programme, val key: String)
+
     /**
-     * Eventos ao vivo e os que começam nas próximas [horizonMs] (padrão 24 h).
-     * Mesmo evento em vários canais (HD, FHD…) aparece uma vez só.
+     * Classificação do guia inteiro, feita uma vez por guia carregado (é a parte cara: textos e
+     * expressões regulares em milhares de programas). A cada minuto só se filtra pelo horário.
      */
-    fun find(
-        channels: List<Channel>,
-        epg: EpgData,
-        now: Long = System.currentTimeMillis(),
-        horizonMs: Long = 24 * 3_600_000L,
-        maxLive: Int = 100,
-        maxUpcoming: Int = 60,
-    ): List<SportEvent> {
-        class Cand(val ch: Channel, val p: Programme, val key: String)
+    class Index(val epg: EpgData, val channels: List<Channel>, val cands: List<Cand>, val firstAir: Map<String, Long>)
+
+    fun index(channels: List<Channel>, epg: EpgData): Index {
         val cands = ArrayList<Cand>()
         /** primeira exibição de cada evento no guia (inclui o que já passou) */
         val firstAir = HashMap<String, Long>()
@@ -146,7 +143,6 @@ object SportsEvents {
             // canal de filmes/séries: o "jogo" ali é filme (Rocky, Creed, Duelo de Titãs…)
             if (!sports && isMovieChannel(ch)) continue
             for (p in list) {
-                if (p.start > now + horizonMs) break
                 if (p.stop - p.start < 10 * 60_000L) continue
                 // o guia diz que é filme/série (e não esporte): não é evento ao vivo
                 if (p.isFilm && !p.isSport && !p.isLiveBroadcast) continue
@@ -154,19 +150,44 @@ object SportsEvents {
                 val key = eventKey(p.title)
                 val prev = firstAir[key]
                 if (prev == null || p.start < prev) firstAir[key] = p.start
-                if (p.stop > now && !isRerun(p)) cands += Cand(ch, p, key)
+                if (!isRerun(p)) cands += Cand(ch, p, key)
             }
         }
+        cands.sortBy { it.p.start }
+        return Index(epg, channels, cands, firstAir)
+    }
+
+    /** Eventos ao vivo e os que começam nas próximas [horizonMs] (rápido: só olha o horário). */
+    fun select(
+        ix: Index,
+        now: Long = System.currentTimeMillis(),
+        horizonMs: Long = 24 * 3_600_000L,
+        maxLive: Int = 100,
+        maxUpcoming: Int = 60,
+    ): List<SportEvent> {
         val live = ArrayList<SportEvent>()
         val upcoming = ArrayList<SportEvent>()
         val seen = HashSet<String>()
-        for (c in cands.sortedBy { it.p.start }) {
+        for (c in ix.cands) {
+            if (c.p.stop <= now) continue
+            if (c.p.start > now + horizonMs) break
             // o mesmo jogo já passou antes (mais de 20 min antes): esta é uma reexibição
-            val first = firstAir[c.key] ?: c.p.start
+            val first = ix.firstAir[c.key] ?: c.p.start
             if (!c.p.isLiveBroadcast && c.p.start - first > 20 * 60_000L) continue
             if (!seen.add(c.key + "|" + c.p.start / 600_000L)) continue
-            if (c.p.start <= now) live += SportEvent(c.ch, c.p, true) else upcoming += SportEvent(c.ch, c.p, false)
+            if (c.p.start <= now) { if (live.size < maxLive) live += SportEvent(c.ch, c.p, true) }
+            else if (upcoming.size < maxUpcoming) upcoming += SportEvent(c.ch, c.p, false)
         }
-        return live.take(maxLive) + upcoming.take(maxUpcoming)
+        return live + upcoming
     }
+
+    /** Atalho (testes): classifica e seleciona de uma vez. */
+    fun find(
+        channels: List<Channel>,
+        epg: EpgData,
+        now: Long = System.currentTimeMillis(),
+        horizonMs: Long = 24 * 3_600_000L,
+        maxLive: Int = 100,
+        maxUpcoming: Int = 60,
+    ): List<SportEvent> = select(index(channels, epg), now, horizonMs, maxLive, maxUpcoming)
 }

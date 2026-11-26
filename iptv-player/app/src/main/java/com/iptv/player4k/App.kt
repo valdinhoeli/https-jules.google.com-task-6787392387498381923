@@ -25,5 +25,7 @@ class App : Application(), ImageLoaderFactory {
             .callFactory(Call.Factory { request -> Http.client.newCall(request) })
             .crossfade(true)
             .respectCacheHeaders(false)
+            // cache de capas na memória limitado (TV Box com pouca RAM): o restante fica no disco
+            .memoryCache { coil.memory.MemoryCache.Builder(this).maxSizePercent(0.15).build() }
             .build()
 }

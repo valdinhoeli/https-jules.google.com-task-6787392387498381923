@@ -106,6 +106,7 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
         super.onHiddenChanged(hidden)
         // ao abrir a aba, atualiza quem está ao vivo / no ar
         if (!hidden && theme == Theme.SPORTS) vm.refreshSports()
+        if (::vodAdapter.isInitialized) { if (hidden) vodAdapter.pause() else vodAdapter.resume() }
         if (!hidden && pendingRender) { pendingRender = false; render(contentNow(), vm.sports.value) }
         if (!hidden) {
             wantFocus = true
@@ -114,6 +115,8 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
     }
 
     override fun onDestroyView() {
+        if (::vodAdapter.isInitialized) vodAdapter.pause()
+        b?.rvThemeVod?.adapter = null
         b = null
         shownVod = null
         super.onDestroyView()
@@ -138,7 +141,8 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
         // escondida atrás de outra tela: não redesenha (redesenha ao aparecer)
         if (isHidden) { pendingRender = true; return }
         val b = b ?: return
-        viewLifecycleOwner.lifecycleScope.launch {
+        val owner = viewLifecycleOwnerLiveData.value ?: return
+        owner.lifecycleScope.launch {
             // NOVELAS: canais passando novela agora (pelo guia), além dos canais de novela
             val now = if (theme == Theme.NOVELAS) withContext(Dispatchers.Default) {
                 // canais que já estão em "Canais de novelas" não se repetem aqui

@@ -107,6 +107,7 @@ class MainActivity : AppCompatActivity() {
         }
         // tela recriada pelo sistema: não reabre o último canal de novo
         if (savedInstanceState != null) vm.autoStartDone = true
+        savedInstanceState0 = savedInstanceState?.getInt(KEY_SECTION)
         setupTabs(savedInstanceState?.getInt(KEY_TAB) ?: vm.currentTab)
         setupHome()
         showSection(savedInstanceState?.getInt(KEY_SECTION) ?: vm.section)
@@ -138,6 +139,21 @@ class MainActivity : AppCompatActivity() {
         vm.start()
     }
 
+    /**
+     * Pouca memória (TV Box com 1–2 GB): descarta as seções escondidas (Filmes, Séries, KIDS…),
+     * com suas capas. Elas são recriadas na hora em que o usuário voltar a elas.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level < android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) return
+        if (supportFragmentManager.isStateSaved) return
+        val hidden = supportFragmentManager.fragments.filter { it.tag?.startsWith("tab") == true && it.isHidden }
+        if (hidden.isEmpty()) return
+        val tx = supportFragmentManager.beginTransaction()
+        hidden.forEach { tx.remove(it) }
+        tx.commitAllowingStateLoss()
+    }
+
     override fun onResume() {
         super.onResume()
         SecureScreen.apply(this)
@@ -155,6 +171,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------------- Abas ----------------
+
+    private var settingUpTabs = false
+    private var savedInstanceState0: Int? = null
 
     private fun setupTabs(initial: Int) {
         val tabs = listOf(
@@ -176,11 +195,14 @@ class MainActivity : AppCompatActivity() {
             tab.view.setOnFocusChangeListener { _, has -> if (has && !tab.isSelected) tab.select() }
         }
         b.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) = showTab(tab.position)
+            // ao abrir na tela inicial, a aba é só marcada: a tela da seção é criada quando o usuário entrar nela
+            override fun onTabSelected(tab: TabLayout.Tab) { if (!settingUpTabs) showTab(tab.position) }
             override fun onTabUnselected(tab: TabLayout.Tab) = Unit
             override fun onTabReselected(tab: TabLayout.Tab) = Unit
         })
+        settingUpTabs = (savedInstanceState0 ?: vm.section) == SECTION_HOME
         b.tabs.getTabAt(initial.coerceIn(0, 3))?.select()
+        settingUpTabs = false
     }
 
     private fun showTab(pos: Int) {

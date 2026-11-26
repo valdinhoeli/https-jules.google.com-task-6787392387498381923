@@ -105,7 +105,6 @@ class ChannelPanel(
         return out
     }
 
-    private val groupsFocused get() = b.panelGroupsCol.isVisible && b.rvPanelGroups.hasFocus()
 
     /** Mostra a coluna de grupos com o foco no grupo atual. O vídeo continua tocando. */
     fun showGroups() {
@@ -143,7 +142,9 @@ class ChannelPanel(
 
     /** Voltar: canais → grupos → sai do player. */
     fun back() {
-        if (groupsFocused) onExit() else showGroups()
+        // decide pela coluna de grupos estar aberta (no celular, em modo de toque, nada recebe foco:
+        // pelo foco, o Voltar reabria os grupos para sempre e o player nunca fechava)
+        if (b.panelGroupsCol.isVisible) onExit() else showGroups()
     }
 
     fun hide() {

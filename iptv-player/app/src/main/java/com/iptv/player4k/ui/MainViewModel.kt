@@ -112,6 +112,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _sports = MutableStateFlow<List<SportEvent>?>(null)
     val sports: StateFlow<List<SportEvent>?> = _sports
     private var sportsJob: Job? = null
+    @Volatile private var sportsIndex: SportsEvents.Index? = null
     private var accountJob: Job? = null
 
     /** Incrementa quando progresso/"minha lista" mudam (outras telas recalculam). */
@@ -309,9 +310,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val channels = live
+        val cached = sportsIndex
         sportsJob?.cancel()
         sportsJob = viewModelScope.launch {
-            _sports.value = withContext(Dispatchers.Default) { SportsEvents.find(channels, epg) }
+            _sports.value = withContext(Dispatchers.Default) {
+                // classificação do guia só quando o guia ou os canais mudam; a cada minuto, só o horário
+                val ix = if (cached != null && cached.epg === epg && cached.channels === channels) cached
+                else SportsEvents.index(channels, epg).also { sportsIndex = it }
+                SportsEvents.select(ix)
+            }
         }
     }
 

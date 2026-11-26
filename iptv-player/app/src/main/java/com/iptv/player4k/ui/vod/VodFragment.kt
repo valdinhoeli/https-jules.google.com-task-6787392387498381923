@@ -88,6 +88,8 @@ class VodFragment : Fragment(R.layout.fragment_vod) {
     }
 
     override fun onDestroyView() {
+        homeAdapter.pause()
+        b?.rvHome?.adapter = null
         super.onDestroyView()
         b = null
     }
@@ -97,6 +99,7 @@ class VodFragment : Fragment(R.layout.fragment_vod) {
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
+        if (hidden) homeAdapter.pause() else homeAdapter.resume()
         if (!hidden && pendingRender) { pendingRender = false; render(vm.library.value, vm.state.value.query, group.value) }
     }
 
@@ -166,12 +169,14 @@ class VodFragment : Fragment(R.layout.fragment_vod) {
 
     /** Sinopse do destaque: lista de filmes do Xtream não traz; busca nos detalhes (com cache). */
     private fun loadPlot(item: PosterItem, cb: (String?) -> Unit) {
+        // a tela pode já ter sido destruída (ex.: liberada por falta de memória)
+        val owner = viewLifecycleOwnerLiveData.value ?: return cb(null)
         val p = vm.state.value.playlist ?: return cb(null)
         val m = item.movie
         val s = item.series
         val key = m?.xtreamId?.let { "m$it" } ?: s?.xtreamId?.let { "s$it" } ?: return cb(null)
         vm.libraryRepo.cached(key)?.let { return cb(it.plot) }
-        viewLifecycleOwner.lifecycleScope.launch {
+        owner.lifecycleScope.launch {
             val d = runCatching { if (m != null) vm.libraryRepo.movieDetails(p, m) else vm.libraryRepo.seriesDetails(p, s!!) }.getOrNull()
             cb(d?.plot)
         }

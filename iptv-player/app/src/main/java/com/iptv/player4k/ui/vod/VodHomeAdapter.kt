@@ -61,13 +61,20 @@ class VodHomeAdapter(
         if (holder is HeroVH) holder.stop()
     }
 
+    private val heroes = HashSet<HeroVH>()
+    private var paused = false
+
     override fun onViewDetachedFromWindow(holder: RecyclerView.ViewHolder) {
-        if (holder is HeroVH) holder.stop()
+        if (holder is HeroVH) { holder.stop(); heroes.remove(holder) }
     }
 
     override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
-        if (holder is HeroVH) holder.start()
+        if (holder is HeroVH) { heroes.add(holder); if (!paused) holder.start() }
     }
+
+    /** Tela escondida/destruída: para a troca automática do destaque (não gasta CPU nem usa a tela velha). */
+    fun pause() { paused = true; heroes.forEach { it.stop() } }
+    fun resume() { paused = false; heroes.forEach { it.start() } }
 
     inner class RowVH(val b: ItemRowBinding) : RecyclerView.ViewHolder(b.root) {
         val adapter = PosterAdapter(onOpen)
