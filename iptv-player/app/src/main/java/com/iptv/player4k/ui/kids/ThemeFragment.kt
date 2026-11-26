@@ -59,6 +59,8 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
     private val nextAdapter = SportsAdapter { e -> SportActions.open(requireActivity(), vm, e) }
     private lateinit var vodAdapter: VodHomeAdapter
     private var shownVod: ThemeContent? = null
+    /** ao abrir a aba, o primeiro item recebe o foco assim que o conteúdo aparecer */
+    private var wantFocus = true
 
     private val theme: Theme get() = Theme.valueOf(requireArguments().getString(ARG_THEME, Theme.KIDS.name))
 
@@ -69,6 +71,9 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
             rv.adapter = a
             rv.itemAnimator = null
         }
+        // a área de rolagem não recebe foco (o controle vai direto aos itens)
+        b.themeScroll.isFocusable = false
+        b.themeScroll.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         horizontal(b.rvThemeLive, liveAdapter)
         horizontal(b.rvThemeNext, nextAdapter)
         horizontal(b.rvThemeNow, nowAdapter)
@@ -101,6 +106,10 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
         super.onHiddenChanged(hidden)
         // ao abrir a aba, atualiza quem está ao vivo / no ar
         if (!hidden && theme == Theme.SPORTS) vm.refreshSports()
+        if (!hidden) {
+            wantFocus = true
+            b?.let { bb -> bb.themeScroll.post { firstItem(bb)?.let { if (it.requestFocus()) wantFocus = false } } }
+        }
     }
 
     override fun onDestroyView() {
@@ -120,7 +129,11 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
         val b = b ?: return
         viewLifecycleOwner.lifecycleScope.launch {
             // NOVELAS: canais passando novela agora (pelo guia), além dos canais de novela
-            val now = if (theme == Theme.NOVELAS) withContext(Dispatchers.Default) { novelasOnAir() } else emptyList()
+            val now = if (theme == Theme.NOVELAS) withContext(Dispatchers.Default) {
+                // canais que já estão em "Canais de novelas" não se repetem aqui
+                val own = c.channels.mapTo(HashSet()) { it.url }
+                novelasOnAir().filter { it.url !in own }
+            } else emptyList()
             val b2 = this@ThemeFragment.b ?: return@launch
             val live = if (theme == Theme.SPORTS) events.orEmpty().filter { it.live } else emptyList()
             val next = if (theme == Theme.SPORTS) events.orEmpty().filter { !it.live } else emptyList()
@@ -144,8 +157,20 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
                 shownVod = c
                 vodAdapter.submit(rows(c))
             }
+            // controle remoto: ao abrir a aba, o foco vai para o primeiro item (não para a área de rolagem)
+            if (wantFocus && isVisible && !empty) {
+                b2.themeScroll.post {
+                    val v = this@ThemeFragment.b?.let { firstItem(it) } ?: return@post
+                    if (v.requestFocus()) wantFocus = false
+                }
+            }
         }
     }
+
+    private fun firstItem(b: FragmentThemeBinding): View? =
+        listOf(b.rvThemeLive, b.rvThemeNext, b.rvThemeNow, b.rvThemeChannels, b.rvThemeVod)
+            .firstOrNull { it.isVisible && it.childCount > 0 }
+            ?.let { rv -> if (rv === b.rvThemeVod) rv.focusSearch(View.FOCUS_DOWN) ?: rv.getChildAt(0) else rv.getChildAt(0) }
 
     /** Canais (já liberados pelo controle dos pais) com novela no ar agora, pelo guia. */
     private fun novelasOnAir(): List<Channel> {

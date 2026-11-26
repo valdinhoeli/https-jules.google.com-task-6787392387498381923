@@ -5,9 +5,11 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 > O app não contém canais. Use apenas listas às quais você tem direito.
 
-| Tela inicial (Android TV) | KIDS | Trocar de grupo sem sair do canal |
+| Tela inicial (Android TV) | ESPORTES | NOVELAS |
 |---|---|---|
-| ![](docs/home.png) | ![](docs/kids-tv.png) | ![](docs/player-grupos.png) |
+| ![](docs/home.png) | ![](docs/esportes-tv.png) | ![](docs/novelas-tv.png) |
+| **KIDS** | **Trocar de grupo sem sair do canal** | |
+| ![](docs/kids-tv.png) | ![](docs/player-grupos.png) | |
 
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
