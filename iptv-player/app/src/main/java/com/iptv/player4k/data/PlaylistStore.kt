@@ -175,6 +175,16 @@ class PlaylistStore(context: Context) {
         get() = prefs.getBoolean("set_match_display", false)
         set(v) = prefs.edit().putBoolean("set_match_display", v).apply()
 
+    /** Tela inicial: rodapé "Eventos esportivos" (ao vivo e próximos). */
+    var homeShowSports: Boolean
+        get() = prefs.getBoolean("set_home_sports", true)
+        set(v) = prefs.edit().putBoolean("set_home_sports", v).apply()
+
+    /** Tela inicial: fileira "Adicionados recentemente" (filmes e séries). */
+    var homeShowRecent: Boolean
+        get() = prefs.getBoolean("set_home_recent", true)
+        set(v) = prefs.edit().putBoolean("set_home_recent", v).apply()
+
     /** Ao abrir o app, começa a tocar o último canal ao vivo assistido. */
     var startLastChannel: Boolean
         get() = prefs.getBoolean("set_start_last", false)

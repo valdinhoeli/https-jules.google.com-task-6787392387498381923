@@ -27,7 +27,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.6.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.7.0.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -43,6 +43,23 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.7.0 — mais fluido e tela inicial configurável**
+- Ajustes → **Tela inicial**: ligar/desligar o rodapé **Eventos esportivos ao vivo** e a fileira
+  **Filmes e séries adicionados recentemente**
+- Fluidez (teste na Android TV com lista de 50 mil itens / 20 mil canais ao vivo):
+  - controle dos pais não refaz a verificação de "adulto" em cada canal (memoriza por grupo):
+    o filtro que travava a tela por vários segundos com listas grandes ficou instantâneo
+  - contagens e "adicionados recentemente" calculados em segundo plano (antes ordenava o
+    catálogo inteiro na thread da tela a cada mudança)
+  - contagem de grupos em segundo plano; telas escondidas atrás da tela inicial não se redesenham
+  - ao voltar do player/ajustes, só refaz o que mudou
+
+  | Quadros pulados (tela travada) | 1.6.0 | 1.7.0 |
+  |---|---|---|
+  | Navegar na tela inicial | 739 | 0 |
+  | Trocar de grupo na lista | 34 | 0 |
+  | Voltar de Ajustes para a tela inicial | travava | 0 |
 
 **1.6.0 — ESPORTES e NOVELAS**
 - Tela inicial com 6 cartões (grade 3×2 na TV, 2×3 no celular): TV AO VIVO, FILMES, SÉRIES,

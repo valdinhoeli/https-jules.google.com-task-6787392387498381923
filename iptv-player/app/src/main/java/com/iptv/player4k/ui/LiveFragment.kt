@@ -70,7 +70,16 @@ class LiveFragment : Fragment(R.layout.fragment_live) {
         b = null
     }
 
+    /** escondida atrás de outra tela: não redesenha (redesenha ao aparecer) */
+    private var pendingRender = false
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden && pendingRender) { pendingRender = false; render(vm.state.value) }
+    }
+
     private fun render(s: UiState) {
+        if (isHidden) { pendingRender = true; return }
         val b = b ?: return
         groupAdapter.submit(s.groups, s.selectedGroup)
         channelAdapter.submit(s.channels, s.favorites)

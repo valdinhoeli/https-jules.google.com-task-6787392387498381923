@@ -106,6 +106,7 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
         super.onHiddenChanged(hidden)
         // ao abrir a aba, atualiza quem está ao vivo / no ar
         if (!hidden && theme == Theme.SPORTS) vm.refreshSports()
+        if (!hidden && pendingRender) { pendingRender = false; render(contentNow(), vm.sports.value) }
         if (!hidden) {
             wantFocus = true
             b?.let { bb -> bb.themeScroll.post { firstItem(bb)?.let { if (it.requestFocus()) wantFocus = false } } }
@@ -125,7 +126,17 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
         if (show) title.text = "$text  ·  $count"
     }
 
+    private var pendingRender = false
+
+    private fun contentNow(): ThemeContent = when (theme) {
+        Theme.KIDS -> vm.kids.value
+        Theme.SPORTS -> vm.sportsTheme.value
+        Theme.NOVELAS -> vm.novelas.value
+    }
+
     private fun render(c: ThemeContent, events: List<SportEvent>?) {
+        // escondida atrás de outra tela: não redesenha (redesenha ao aparecer)
+        if (isHidden) { pendingRender = true; return }
         val b = b ?: return
         viewLifecycleOwner.lifecycleScope.launch {
             // NOVELAS: canais passando novela agora (pelo guia), além dos canais de novela

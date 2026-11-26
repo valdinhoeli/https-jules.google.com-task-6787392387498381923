@@ -69,6 +69,11 @@
     <string name="set_large_buffer">Buffer maior (internet instável)</string>
     <string name="set_match_display">Mudar a TV para 4K ao reproduzir vídeo 4K</string>
     <string name="set_pip">Picture-in-Picture ao sair do player</string>
+    <string name="sec_home">TELA INICIAL</string>
+    <string name="set_home_sports">Eventos esportivos ao vivo</string>
+    <string name="set_home_sports_sum">Mostra o rodapé com jogos ao vivo e os próximos na tela inicial</string>
+    <string name="set_home_recent">Filmes e séries adicionados recentemente</string>
+    <string name="set_home_recent_sum">Mostra a fileira de novidades do catálogo na tela inicial</string>
     <string name="set_start_last">Abrir no último canal assistido</string>
     <string name="set_start_last_sum">Ao abrir o app, o último canal ao vivo começa a tocar sozinho. Voltar leva à tela inicial</string>
 

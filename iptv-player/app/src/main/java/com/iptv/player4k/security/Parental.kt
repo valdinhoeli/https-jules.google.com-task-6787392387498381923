@@ -10,9 +10,17 @@ object AgeRating {
         """(?<![a-z0-9])(adult[oa]?s?|adult[s]?|xxx|porn[oô]?s?|erotic[oa]?s?|sexy|playboy|hentai|onlyfans|for adults|\+ ?18|18 ?\+)(?![a-z0-9])"""
     )
 
+    /** Respostas já calculadas: a lista tem poucos grupos repetidos em milhares de canais. */
+    private val adultMemo = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
     /** Grupo/categoria com conteúdo adulto ("Adultos", "XXX", "+18"…). */
-    fun isAdult(group: String?): Boolean =
-        !group.isNullOrBlank() && adultRe.containsMatchIn(Text.normalize(group))
+    fun isAdult(group: String?): Boolean {
+        if (group.isNullOrBlank()) return false
+        adultMemo[group]?.let { return it }
+        val r = adultRe.containsMatchIn(Text.normalize(group))
+        if (adultMemo.size < 20_000) adultMemo[group] = r
+        return r
+    }
 
     /** Converte classificações comuns (BR, EUA, TV) para idade. */
     fun parse(raw: String?): Int? {

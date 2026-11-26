@@ -119,7 +119,10 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { vm.state.collect(::render) }
                 launch { vm.state.collect { maybeStartLastChannel(it) } }
-                launch { kotlinx.coroutines.flow.combine(vm.state, vm.library, vm.contentVersion) { s, l, _ -> s to l }.collect { (s, l) -> renderHome(s, l) } }
+                launch {
+                    kotlinx.coroutines.flow.combine(vm.state, vm.library, vm.home) { s, l, hs -> Triple(s, l, hs) }
+                        .collect { (s, l, hs) -> renderHome(s, l, hs) }
+                }
                 launch { kotlinx.coroutines.flow.combine(vm.account, vm.state) { a, _ -> a }.collect(::renderExpiry) }
                 launch { kotlinx.coroutines.flow.combine(vm.kids, vm.library) { k, l -> k to l }.collect { (k, l) -> renderKidsCount(k, l) } }
                 launch {
@@ -138,8 +141,10 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         SecureScreen.apply(this)
-        // recentes/favoritos/progresso e controle dos pais podem ter mudado
-        vm.parentalChanged()
+        // recentes/favoritos/progresso e controle dos pais podem ter mudado (só refaz o necessário)
+        vm.onScreenResumed()
+        // chaves da tela inicial (Ajustes): rodapé de esportes e novidades
+        renderSports(vm.sports.value, vm.epg.value)
         invalidateOptionsMenu()
     }
 
@@ -246,7 +251,7 @@ class MainActivity : AppCompatActivity() {
         b.root.post(clockTick)
     }
 
-    private fun renderHome(s: UiState, lib: LibraryState) {
+    private fun renderHome(s: UiState, lib: LibraryState, hs: HomeSummary) {
         val h = b.home
         h.tvHomeList.text = s.playlist?.name ?: ""
         if (s.playlist == null) {
@@ -258,14 +263,14 @@ class MainActivity : AppCompatActivity() {
         }
         h.tvCountLive.text = if (s.loading && s.totalCount == 0) getString(R.string.home_loading)
         else resources.getQuantityString(R.plurals.channel_count, s.totalCount, s.totalCount)
-        val rules = vm.rules()
-        val movies = lib.library.movies.count { !rules.isBlocked(it.age, it.category) }
-        val series = lib.library.series.count { !rules.isBlocked(it.age, it.category) }
+        // contagens e novidades vêm prontas do ViewModel (calculadas em segundo plano)
+        val movies = hs.movies
+        val series = hs.series
         val busy = lib.loading && lib.library.isEmpty
-        val recent = com.iptv.player4k.ui.vod.VodRows.recentlyAdded(lib.library, rules)
+        val recent = if (vm.store.homeShowRecent) hs.recent else emptyList()
         h.tvHomeRecent.isVisible = recent.isNotEmpty()
         h.rvHomeRecent.isVisible = recent.isNotEmpty()
-        if (recent.map { it.movie?.id ?: it.series?.id } != recentAdapter.items.map { it.movie?.id ?: it.series?.id }) recentAdapter.submit(recent)
+        if (recent !== recentAdapter.items) recentAdapter.submit(recent)
         h.tvCountMovies.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_movies_count, movies, movies)
         h.tvCountSeries.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_series_count, series, series)
     }
@@ -331,6 +336,8 @@ class MainActivity : AppCompatActivity() {
     /** Rodapé de eventos esportivos (ao vivo e próximos). */
     private fun renderSports(events: List<com.iptv.player4k.epg.SportEvent>?, epg: EpgState) {
         val h = b.home
+        h.homeSports.isVisible = vm.store.homeShowSports
+        if (!vm.store.homeShowSports) return
         val list = events.orEmpty()
         h.rvHomeSports.isVisible = list.isNotEmpty()
         h.tvSportsEmpty.isVisible = list.isEmpty()

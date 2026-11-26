@@ -58,6 +58,13 @@ data class LibraryState(
     val error: String? = null,
 )
 
+/** Números e novidades da tela inicial (calculados fora da thread da tela). */
+data class HomeSummary(
+    val movies: Int = 0,
+    val series: Int = 0,
+    val recent: List<com.iptv.player4k.ui.vod.PosterItem> = emptyList(),
+)
+
 /** Validade da assinatura: [xtream] false = lista M3U sem painel (validade não informada). */
 data class AccountState(val info: AccountInfo? = null, val xtream: Boolean = false, val loading: Boolean = false)
 
@@ -93,6 +100,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _novelas = MutableStateFlow(com.iptv.player4k.data.ThemeContent.EMPTY)
     val novelas: StateFlow<com.iptv.player4k.data.ThemeContent> = _novelas
     private var kidsJob: Job? = null
+
+    private val _home = MutableStateFlow(HomeSummary())
+    val home: StateFlow<HomeSummary> = _home
+    private var homeJob: Job? = null
 
     private val _account = MutableStateFlow(AccountState())
     val account: StateFlow<AccountState> = _account
@@ -185,6 +196,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _kids.value = com.iptv.player4k.data.ThemeContent.EMPTY
         _sportsTheme.value = com.iptv.player4k.data.ThemeContent.EMPTY
         _novelas.value = com.iptv.player4k.data.ThemeContent.EMPTY
+        homeJob?.cancel()
+        _home.value = HomeSummary()
     }
 
     /**
@@ -375,8 +388,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         live = liveAll.filter { !r.isBlocked(it.age, it.group) }
         byUrl = live.associateBy { it.url }
         Session.live = live
-        Session.allGroups = (liveAll.map { it.group } + all.filter { it.kind != ContentKind.LIVE }.map { it.group } +
-            _library.value.library.movieCategories + _library.value.library.seriesCategories).distinct()
+        Session.allGroups = LinkedHashSet<String>().apply {
+            liveAll.forEach { add(it.group) }
+            all.forEach { if (it.kind != ContentKind.LIVE) add(it.group) }
+            addAll(_library.value.library.movieCategories); addAll(_library.value.library.seriesCategories)
+        }.toList()
         _state.update { it.copy(totalCount = live.size) }
         recomputeKids()
     }
@@ -401,6 +417,47 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             _kids.value = k; _sportsTheme.value = sp; _novelas.value = nv
         }
+        recomputeHome()
+    }
+
+    /** Contagens e "adicionados recentemente" (ordenar o catálogo inteiro é pesado: fica em segundo plano). */
+    fun recomputeHome() {
+        val lib = _library.value.library
+        val r = rules()
+        val showRecent = store.homeShowRecent
+        homeJob?.cancel()
+        homeJob = viewModelScope.launch {
+            _home.value = withContext(Dispatchers.Default) {
+                HomeSummary(
+                    movies = lib.movies.count { !r.isBlocked(it.age, it.category) },
+                    series = lib.series.count { !r.isBlocked(it.age, it.category) },
+                    recent = if (showRecent) com.iptv.player4k.ui.vod.VodRows.recentlyAdded(lib, r) else emptyList(),
+                )
+            }
+        }
+    }
+
+    private var lastRulesKey: String? = null
+    private var lastShowRecent: Boolean? = null
+
+    /**
+     * Volta para a tela (do player, detalhes, ajustes…): refaz só o que mudou.
+     * Regras dos pais iguais → só recentes/favoritos e progresso; refiltrar 50 mil canais e
+     * recalcular KIDS/ESPORTES/NOVELAS a cada volta deixava o app pesado.
+     */
+    fun onScreenResumed() {
+        val pid = state.value.playlist?.id.orEmpty()
+        val key = listOf(store.hasPin, ParentalSession.isUnlocked, store.maxAge, store.autoLockAdult, store.lockedGroups(pid).hashCode())
+            .joinToString("|")
+        if (key != lastRulesKey) {
+            val first = lastRulesKey == null
+            lastRulesKey = key
+            if (!first) { parentalChanged(); lastShowRecent = store.homeShowRecent; return }
+        }
+        rebuild()
+        contentChanged()
+        if (lastShowRecent != null && lastShowRecent != store.homeShowRecent) recomputeHome()
+        lastShowRecent = store.homeShowRecent
     }
 
     /** Chamado após PIN/configurações dos pais mudarem. */
@@ -416,21 +473,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Recalcula grupos/contagens (favoritos e recentes mudam fora da lista). */
+    private var rebuildJob: Job? = null
+
     fun rebuild() {
-        val p = state.value.playlist ?: return
-        val ctx = getApplication<Application>()
-        val favs = store.favorites(p.id)
-        val recents = store.recents(p.id).count { it in byUrl }
-        val counts = LinkedHashMap<String, Int>()
-        live.forEach { counts[it.group] = (counts[it.group] ?: 0) + 1 }
-        val groups = ArrayList<GroupItem>(counts.size + 3)
-        groups += GroupItem(GROUP_ALL, ctx.getString(R.string.group_all), live.size)
-        groups += GroupItem(GROUP_FAV, ctx.getString(R.string.group_favorites), live.count { it.url in favs })
-        groups += GroupItem(GROUP_RECENT, ctx.getString(R.string.group_recents), recents)
-        counts.forEach { (g, c) -> groups += GroupItem(g, g, c) }
-        val sel = state.value.selectedGroup.takeIf { s -> groups.any { it.key == s } } ?: GROUP_ALL
-        _state.update { it.copy(groups = groups, favorites = favs, selectedGroup = sel) }
-        applyFilter()
+            val p = state.value.playlist ?: return
+            val ctx = getApplication<Application>()
+            val liveNow = live
+            val byUrlNow = byUrl
+            rebuildJob?.cancel()
+            rebuildJob = viewModelScope.launch {
+                // contagem por grupo de milhares de canais: fora da thread da tela
+                val (groups, favs) = withContext(Dispatchers.Default) {
+                    val favs = store.favorites(p.id)
+                    val recents = store.recents(p.id).count { it in byUrlNow }
+                    val counts = LinkedHashMap<String, Int>()
+                    liveNow.forEach { counts[it.group] = (counts[it.group] ?: 0) + 1 }
+                    val groups = ArrayList<GroupItem>(counts.size + 3)
+                    groups += GroupItem(GROUP_ALL, ctx.getString(R.string.group_all), liveNow.size)
+                    groups += GroupItem(GROUP_FAV, ctx.getString(R.string.group_favorites), liveNow.count { it.url in favs })
+                    groups += GroupItem(GROUP_RECENT, ctx.getString(R.string.group_recents), recents)
+                    counts.forEach { (g, c) -> groups += GroupItem(g, g, c) }
+                    groups to favs
+                }
+                val sel = state.value.selectedGroup.takeIf { s -> groups.any { it.key == s } } ?: GROUP_ALL
+                _state.update { it.copy(groups = groups, favorites = favs, selectedGroup = sel) }
+                applyFilter()
+            }
     }
 
     private fun applyFilter() {

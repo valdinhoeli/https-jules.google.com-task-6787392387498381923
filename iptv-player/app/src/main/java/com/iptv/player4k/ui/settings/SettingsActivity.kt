@@ -54,6 +54,10 @@ class SettingsActivity : AppCompatActivity() {
         val c = b.container
         c.removeAllViews()
 
+        header(R.string.sec_home)
+        switch(R.drawable.ic_sports, R.string.set_home_sports, R.string.set_home_sports_sum, store.homeShowSports) { store.homeShowSports = it }
+        switch(R.drawable.ic_movie, R.string.set_home_recent, R.string.set_home_recent_sum, store.homeShowRecent) { store.homeShowRecent = it }
+
         header(R.string.sec_playback)
         switch(R.drawable.ic_play, R.string.set_start_last, R.string.set_start_last_sum, store.startLastChannel) { store.startLastChannel = it }
         switch(R.drawable.ic_hq, R.string.set_force_max, R.string.set_force_max_sum, store.forceMaxQuality) { store.forceMaxQuality = it }

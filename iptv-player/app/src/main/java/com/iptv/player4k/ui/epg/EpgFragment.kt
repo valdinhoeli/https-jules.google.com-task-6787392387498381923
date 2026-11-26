@@ -74,6 +74,8 @@ class EpgFragment : Fragment(R.layout.fragment_epg) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(vm.state, vm.epg) { s, e -> s to e }.collect { (s, e) ->
+                    // escondida: não refaz a grade de milhares de canais (refaz ao aparecer)
+                    if (isHidden) { pendingRender = true; return@collect }
                     groupAdapter.submit(s.groups, s.selectedGroup)
                     b.epgGrid.setData(s.channels, e.data)
                     renderStatus(e)
@@ -93,8 +95,20 @@ class EpgFragment : Fragment(R.layout.fragment_epg) {
         stopPreview()
     }
 
+    private var pendingRender = false
+
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
+        if (!hidden && pendingRender) {
+            pendingRender = false
+            val s = vm.state.value; val e = vm.epg.value
+            b?.let { bb ->
+                groupAdapter.submit(s.groups, s.selectedGroup)
+                bb.epgGrid.setData(s.channels, e.data)
+                renderStatus(e)
+                if (s.channels.isEmpty()) clearHeader()
+            }
+        }
         if (hidden) stopPreview() else schedulePreview(300)
     }
 

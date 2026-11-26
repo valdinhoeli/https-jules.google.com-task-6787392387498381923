@@ -92,7 +92,16 @@ class VodFragment : Fragment(R.layout.fragment_vod) {
         b = null
     }
 
+    /** escondida atrás de outra tela: não refaz as fileiras (refaz ao aparecer) */
+    private var pendingRender = false
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden && pendingRender) { pendingRender = false; render(vm.library.value, vm.state.value.query, group.value) }
+    }
+
     private fun render(st: LibraryState, query: String, selected: String) {
+        if (isHidden) { pendingRender = true; return }
         val b = b ?: return
         val lib = st.library
         val empty = if (kind == ContentKind.MOVIE) lib.movies.isEmpty() else lib.series.isEmpty()
