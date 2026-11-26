@@ -113,6 +113,8 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { vm.state.collect(::render) }
                 launch { kotlinx.coroutines.flow.combine(vm.state, vm.library, vm.contentVersion) { s, l, _ -> s to l }.collect { (s, l) -> renderHome(s, l) } }
+                launch { kotlinx.coroutines.flow.combine(vm.account, vm.state) { a, _ -> a }.collect(::renderExpiry) }
+                launch { kotlinx.coroutines.flow.combine(vm.sports, vm.epg) { s, e -> s to e }.collect { (s, e) -> renderSports(s, e) } }
                 launch {
                     vm.messages.collect { msg -> Snackbar.make(b.root, msg, Snackbar.LENGTH_LONG).show() }
                 }
@@ -182,16 +184,18 @@ class MainActivity : AppCompatActivity() {
     // ---------------- Tela inicial: TV AO VIVO / FILMES / SÉRIES ----------------
 
     private val clockFmt = java.text.SimpleDateFormat("EEE, d 'de' MMM  ·  HH:mm", java.util.Locale("pt", "BR"))
-    private val clockDay = java.text.SimpleDateFormat("EEE, d 'de' MMM", java.util.Locale("pt", "BR"))
-    private val clockTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
+    private val dateFmt = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR"))
+    private var clockTicks = 0
     private val clockTick = object : Runnable {
         override fun run() {
-            val now = java.util.Date()
-            b.home.tvHomeClock.text = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT)
-                clockDay.format(now) + "\n" + clockTime.format(now) else clockFmt.format(now)
+            b.home.tvHomeClock.text = clockFmt.format(java.util.Date())
+            // a cada minuto: eventos que começaram/acabaram e o progresso dos que estão ao vivo
+            if (clockTicks++ % 2 == 1 && vm.section == SECTION_HOME) vm.refreshSports()
             b.root.postDelayed(this, 30_000)
         }
     }
+    private lateinit var recentAdapter: com.iptv.player4k.ui.vod.PosterAdapter
+    private lateinit var sportsAdapter: com.iptv.player4k.ui.home.SportsAdapter
 
     private fun setupHome() {
         val h = b.home
@@ -203,10 +207,22 @@ class MainActivity : AppCompatActivity() {
                 if (vm.state.value.playlist == null) showPlaylistDialog(null) else showSection(sec)
             }
             card.setOnFocusChangeListener { v, has ->
-                val sc = if (has) 1.06f else 1f
+                // cartões ocupando a largura toda (celular em pé) crescem menos para não cortar
+                val sc = if (!has) 1f else if (resources.getBoolean(R.bool.wide_layout)) 1.06f else 1.03f
                 v.animate().scaleX(sc).scaleY(sc).translationZ(if (has) 16f else 0f).setDuration(150).start()
             }
         }
+        // adicionados recentemente (filmes e séries)
+        val posterW = (resources.displayMetrics.density * (if (resources.getBoolean(R.bool.wide_layout)) 92 else 100)).toInt()
+        recentAdapter = com.iptv.player4k.ui.vod.PosterAdapter({ openDetails(it) }, posterW)
+        h.rvHomeRecent.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.RecyclerView.HORIZONTAL, false)
+        h.rvHomeRecent.adapter = recentAdapter
+        h.rvHomeRecent.itemAnimator = null
+        // rodapé: eventos esportivos
+        sportsAdapter = com.iptv.player4k.ui.home.SportsAdapter(::openSportEvent)
+        h.rvHomeSports.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.RecyclerView.HORIZONTAL, false)
+        h.rvHomeSports.adapter = sportsAdapter
+        h.rvHomeSports.itemAnimator = null
         h.btnHomeLists.setOnClickListener { guarded { showPlaylistPicker() } }
         h.btnHomeRefresh.setOnClickListener { vm.refresh() }
         h.btnHomeSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
@@ -226,8 +242,100 @@ class MainActivity : AppCompatActivity() {
         val movies = lib.library.movies.count { !rules.isBlocked(it.age, it.category) }
         val series = lib.library.series.count { !rules.isBlocked(it.age, it.category) }
         val busy = lib.loading && lib.library.isEmpty
+        val recent = com.iptv.player4k.ui.vod.VodRows.recentlyAdded(lib.library, rules)
+        h.tvHomeRecent.isVisible = recent.isNotEmpty()
+        h.rvHomeRecent.isVisible = recent.isNotEmpty()
+        if (recent.map { it.movie?.id ?: it.series?.id } != recentAdapter.items.map { it.movie?.id ?: it.series?.id }) recentAdapter.submit(recent)
         h.tvCountMovies.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_movies_count, movies, movies)
         h.tvCountSeries.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_series_count, series, series)
+    }
+
+    /** Validade da lista (painel Xtream), com cor conforme os dias que faltam. */
+    private fun renderExpiry(a: AccountState) {
+        val tv = b.home.tvHomeExpiry
+        if (vm.state.value.playlist == null) { tv.isVisible = false; return }
+        tv.isVisible = true
+        val grey = 0x40FFFFFF
+        val green = 0xFF15965A.toInt()
+        val amber = 0xFFD97706.toInt()
+        val red = getColor(R.color.live_red)
+        val info = a.info
+        val (text, color) = when {
+            !a.xtream -> getString(R.string.exp_unknown) to grey
+            info == null -> getString(if (a.loading) R.string.exp_checking else R.string.exp_unknown) to grey
+            !info.isActive -> getString(R.string.exp_inactive, info.status.orEmpty().lowercase()) to red
+            info.expiresAt == null -> getString(R.string.exp_unlimited) to green
+            else -> {
+                val days = info.daysLeft() ?: 0
+                val date = dateFmt.format(java.util.Date(info.expiresAt))
+                when {
+                    info.expiresAt < System.currentTimeMillis() -> getString(R.string.exp_expired, date) to red
+                    days == 0L -> getString(R.string.exp_today) to red
+                    else -> getString(
+                        R.string.exp_days, getString(R.string.exp_until, date),
+                        resources.getQuantityString(R.plurals.exp_days_left, days.toInt(), days.toInt()),
+                    ) to (if (days <= 3) red else if (days <= 15) amber else green)
+                }
+            }
+        }
+        tv.text = if (info?.trial == true) text + " · " + getString(R.string.exp_trial) else text
+        tv.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+    }
+
+    /** Rodapé de eventos esportivos (ao vivo e próximos). */
+    private fun renderSports(events: List<com.iptv.player4k.epg.SportEvent>?, epg: EpgState) {
+        val h = b.home
+        val list = events.orEmpty()
+        h.rvHomeSports.isVisible = list.isNotEmpty()
+        h.tvSportsEmpty.isVisible = list.isEmpty()
+        val live = list.count { it.live }
+        h.tvSportsSummary.text = if (list.isEmpty()) "" else getString(R.string.home_sports_summary, live, list.size - live)
+        h.tvSportsEmpty.setText(
+            when {
+                vm.state.value.playlist == null -> R.string.home_add_list
+                events == null || (epg.loading && epg.data == null) -> R.string.home_sports_loading
+                epg.data == null || epg.data.isEmpty -> R.string.home_sports_no_epg
+                else -> R.string.home_sports_none
+            }
+        )
+        // mantém o foco no mesmo cartão ao atualizar
+        val focusedPos = h.rvHomeSports.focusedChild?.let { h.rvHomeSports.getChildAdapterPosition(it) } ?: -1
+        sportsAdapter.submit(list)
+        if (focusedPos >= 0 && list.isNotEmpty()) {
+            val pos = focusedPos.coerceAtMost(list.size - 1)
+            h.rvHomeSports.post { h.rvHomeSports.findViewHolderForAdapterPosition(pos)?.itemView?.requestFocus() }
+        }
+    }
+
+    /** Evento ao vivo: abre direto no canal. Próximo: avisa quando começa. */
+    private fun openSportEvent(e: com.iptv.player4k.epg.SportEvent) {
+        val p = e.programme
+        if (!e.live && p.start > System.currentTimeMillis()) {
+            val day = when (com.iptv.player4k.ui.home.SportsAdapter.dayOffset(p.start)) {
+                0 -> getString(R.string.sport_today_word)
+                1 -> getString(R.string.sport_tomorrow_word)
+                else -> java.text.SimpleDateFormat("EEEE", java.util.Locale("pt", "BR")).format(p.start)
+            }
+            Toast.makeText(this, getString(R.string.sport_starts, day, com.iptv.player4k.ui.home.SportsAdapter.time(p.start), e.channel.name), Toast.LENGTH_LONG).show()
+            return
+        }
+        // fila do player: canais do mesmo grupo (▲/▼ troca de canal); garante que o canal está nela
+        val group = com.iptv.player4k.data.Session.live.filter { it.group == e.channel.group }
+        val list = if (e.channel in group) group else listOf(e.channel)
+        com.iptv.player4k.data.PlaybackQueue.set(vm.state.value.playlist, list)
+        vm.addRecent(e.channel)
+        startActivity(
+            Intent(this, com.iptv.player4k.player.PlayerActivity::class.java)
+                .putExtra(com.iptv.player4k.player.PlayerActivity.EXTRA_INDEX, list.indexOf(e.channel).coerceAtLeast(0))
+        )
+    }
+
+    private fun openDetails(item: com.iptv.player4k.ui.vod.PosterItem) {
+        startActivity(
+            Intent(this, com.iptv.player4k.ui.details.DetailsActivity::class.java)
+                .putExtra(com.iptv.player4k.ui.details.DetailsActivity.EXTRA_KIND, if (item.movie != null) ContentKind.MOVIE.name else ContentKind.SERIES.name)
+                .putExtra(com.iptv.player4k.ui.details.DetailsActivity.EXTRA_ID, item.movie?.id ?: item.series!!.id)
+        )
     }
 
     /** Na seção Ao vivo só ficam as abas "Ao vivo" e "Guia". */
@@ -272,6 +380,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && vm.section == SECTION_HOME && homeKey(event.keyCode)) return true
         if (event.action == android.view.KeyEvent.ACTION_DOWN && event.keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP) {
             val focused = currentFocus
             if (focused != null && b.tabs.isVisible && isInside(focused, b.container)) {
@@ -283,6 +392,34 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /**
+     * Setas na tela inicial: ▼ da área de cima (cartões/novidades) vai direto aos eventos do rodapé
+     * (a rolagem não "prende" o foco) e ▲ do rodapé volta para as novidades.
+     */
+    private fun homeKey(code: Int): Boolean {
+        val h = b.home
+        val focused = currentFocus ?: return false
+        if (code == android.view.KeyEvent.KEYCODE_DPAD_DOWN && isInside(focused, h.homeScroll)) {
+            val next = android.view.FocusFinder.getInstance().findNextFocus(h.homeScroll, focused, android.view.View.FOCUS_DOWN)
+            if (next != null && next !== focused) return false
+            return focusRow(h.rvHomeSports)
+        }
+        if (code == android.view.KeyEvent.KEYCODE_DPAD_UP && isInside(focused, h.rvHomeSports)) {
+            if (h.rvHomeRecent.isVisible && focusRow(h.rvHomeRecent)) return true
+            return (if (resources.getBoolean(R.bool.wide_layout)) h.cardMovies else h.cardSeries).requestFocus()
+        }
+        return false
+    }
+
+    /** Foca o primeiro item visível de uma fileira (rolando a tela até ela). */
+    private fun focusRow(rv: androidx.recyclerview.widget.RecyclerView): Boolean {
+        if (!rv.isVisible || rv.adapter?.itemCount == 0) return false
+        val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return false
+        val pos = lm.findFirstCompletelyVisibleItemPosition().takeIf { it >= 0 } ?: lm.findFirstVisibleItemPosition().coerceAtLeast(0)
+        val v = lm.findViewByPosition(pos) ?: return false
+        return v.requestFocus()
     }
 
     private fun isInside(v: android.view.View, parent: android.view.ViewGroup): Boolean {

@@ -55,6 +55,31 @@ object VodRows {
         age = s.age ?: if (com.iptv.player4k.security.AgeRating.isAdult(s.category)) 18 else null,
     )
 
+    /**
+     * Filmes e séries adicionados recentemente, misturados (mais novos primeiro).
+     * Sem a data do painel (listas M3U), usa a ordem da lista: os últimos itens são os mais novos.
+     */
+    fun recentlyAdded(lib: Library, rules: ParentalRules, max: Int = 30): List<PosterItem> {
+        val movies = lib.movies.filter { !rules.isBlocked(it.age, it.category) }
+        val series = lib.series.filter { !rules.isBlocked(it.age, it.category) }
+        val dated = movies.any { it.added > 0 } || series.any { it.added > 0 }
+        if (dated) {
+            return (movies.sortedByDescending { it.added }.take(max).map { poster(it) } +
+                series.sortedByDescending { it.added }.take(max).map { poster(it) })
+                .sortedByDescending { it.added }.take(max)
+        }
+        val m = movies.takeLast(max).asReversed().map { poster(it) }
+        val s = series.takeLast(max).asReversed().map { poster(it) }
+        val out = ArrayList<PosterItem>(max)
+        var i = 0
+        while (out.size < max && (i < m.size || i < s.size)) {
+            m.getOrNull(i)?.let { out += it }
+            if (out.size < max) s.getOrNull(i)?.let { out += it }
+            i++
+        }
+        return out
+    }
+
     /** Todos os itens visíveis (controle dos pais aplicado). */
     fun visible(lib: Library, kind: ContentKind, rules: ParentalRules): List<PosterItem> =
         if (kind == ContentKind.MOVIE) lib.movies.filter { !rules.isBlocked(it.age, it.category) }.map { poster(it) }

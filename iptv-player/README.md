@@ -5,9 +5,9 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 > O app não contém canais. Use apenas listas às quais você tem direito.
 
-| Tela inicial | Trocar de grupo sem sair do canal |
-|---|---|
-| ![](docs/home.png) | ![](docs/player-grupos.png) |
+| Tela inicial (TV) | Celular: validade, novidades e esportes | Trocar de grupo sem sair do canal |
+|---|---|---|
+| ![](docs/home.png) | ![](docs/home-celular.png) | ![](docs/player-grupos.png) |
 
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
@@ -25,7 +25,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.3.0.apk` (pasta `release/`).
+1. Baixe o APK `IPTV-Player-4K-v1.4.0.apk` (pasta `release/`).
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -41,6 +41,19 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.4.0 — tela inicial com esportes, novidades e validade**
+- Rodapé **Eventos esportivos**: jogos e transmissões encontrados no guia (EPG) da lista,
+  ao vivo (com progresso e horário de término) e os que começam nas próximas 24 h.
+  Evento ao vivo: OK/toque abre **direto no canal**; evento futuro avisa dia, hora e canal
+- Fileira **Adicionados recentemente** com filmes e séries mais novos (data do painel Xtream;
+  em listas M3U, os últimos itens da lista)
+- **Validade da lista** no topo (painel Xtream): data de vencimento e dias que faltam,
+  em verde, amarelo (≤ 15 dias) ou vermelho (≤ 3 dias / vencida); "sem vencimento" e
+  "não informada" para listas M3U sem painel (consultada no máximo a cada 6 h e no Atualizar)
+- Atalhos Listas, Atualizar e Ajustes viraram botões no topo
+- Controle remoto: ▼ desce dos cartões para as novidades e para o rodapé de esportes;
+  ▲ volta. Os eventos se atualizam sozinhos a cada minuto
 
 **1.3.0 — tela inicial e correções para TV**
 - Ao abrir, tela inicial com 3 opções grandes: **TV AO VIVO**, **FILMES** e **SÉRIES**

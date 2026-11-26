@@ -48,6 +48,16 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
             r.body?.string() ?: throw IOException("Resposta vazia")
         }
 
+    /** Validade/situação da assinatura (player_api.php sem action). */
+    fun accountInfo(): AccountInfo? {
+        val url = "$base/player_api.php?username=${enc(user)}&password=${enc(pass)}"
+        val body = Http.playlistClient.newCall(request(url)).execute().use { r ->
+            if (!r.isSuccessful) throw IOException("HTTP ${r.code}")
+            r.body?.string() ?: throw IOException("Resposta vazia")
+        }
+        return AccountInfo.parseXtream(body)
+    }
+
     private fun request(url: String) = Request.Builder().url(url).header("User-Agent", userAgent).build()
 
     companion object {

@@ -45,7 +45,7 @@ class PlaylistStore(context: Context) {
 
     fun delete(id: String) {
         write(playlists().filterNot { it.id == id })
-        prefs.edit().remove("fav_$id").remove("rec_$id").remove("prog_$id").remove("my_$id").remove("lock_$id").apply()
+        prefs.edit().remove("fav_$id").remove("rec_$id").remove("prog_$id").remove("my_$id").remove("lock_$id").remove("acc_$id").apply()
         if (selectedId == id) selectedId = null
     }
 
@@ -63,6 +63,10 @@ class PlaylistStore(context: Context) {
         val all = playlists()
         return all.firstOrNull { it.id == selectedId } ?: all.firstOrNull()
     }
+
+    // ---- validade da assinatura (último valor lido do painel) ----
+    fun account(id: String): AccountInfo? = getSecure("acc_$id")?.let { AccountInfo.fromJson(it) }
+    fun saveAccount(id: String, info: AccountInfo) = putSecure("acc_$id", info.toJson())
 
     // ---- valores cifrados (contêm URLs com usuário/senha) ----
     private fun getSecure(key: String): String? {

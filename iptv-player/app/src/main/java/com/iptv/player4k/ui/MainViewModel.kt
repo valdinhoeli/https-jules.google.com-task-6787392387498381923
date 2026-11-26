@@ -4,7 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.iptv.player4k.R
+import com.iptv.player4k.data.AccountInfo
 import com.iptv.player4k.data.Channel
+import com.iptv.player4k.data.XtreamApi
+import com.iptv.player4k.epg.SportEvent
+import com.iptv.player4k.epg.SportsEvents
 import com.iptv.player4k.data.ContentKind
 import com.iptv.player4k.data.Library
 import com.iptv.player4k.data.LibraryRepository
@@ -54,6 +58,9 @@ data class LibraryState(
     val error: String? = null,
 )
 
+/** Validade da assinatura: [xtream] false = lista M3U sem painel (validade não informada). */
+data class AccountState(val info: AccountInfo? = null, val xtream: Boolean = false, val loading: Boolean = false)
+
 data class EpgState(
     val loading: Boolean = false,
     val data: EpgData? = null,
@@ -76,6 +83,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _epg = MutableStateFlow(EpgState())
     val epg: StateFlow<EpgState> = _epg
+
+    private val _account = MutableStateFlow(AccountState())
+    val account: StateFlow<AccountState> = _account
+
+    /** Eventos esportivos do guia (ao vivo e próximos), para o rodapé da tela inicial. */
+    private val _sports = MutableStateFlow<List<SportEvent>?>(null)
+    val sports: StateFlow<List<SportEvent>?> = _sports
+    private var sportsJob: Job? = null
+    private var accountJob: Job? = null
 
     /** Incrementa quando progresso/"minha lista" mudam (outras telas recalculam). */
     private val _contentVersion = MutableStateFlow(0)
@@ -150,6 +166,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Session.library = Library.EMPTY
         Session.epg = null
         Session.creds = null
+        accountJob?.cancel(); sportsJob?.cancel()
+        _account.value = AccountState()
+        _sports.value = null
     }
 
     /**
@@ -183,6 +202,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val extrasForce = forceRefresh && !quiet
                 loadLibrary(saved, extrasForce, creds, repo.fingerprint(saved))
                 loadEpg(saved, result.tvgUrls, extrasForce, creds)
+                loadAccount(saved, creds, forceRefresh)
                 // lista baixada há mais de 24 h: atualiza sozinha em segundo plano
                 if (!forceRefresh && saved.type != PlaylistType.FILE &&
                     System.currentTimeMillis() - saved.updatedAt > AUTO_REFRESH_MS
@@ -236,6 +256,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         applyParental()
     }
 
+    /** Validade: mostra a última salva na hora e consulta o painel (no máx. a cada 6 h). */
+    private fun loadAccount(p: Playlist, creds: XtreamCreds?, force: Boolean) {
+        accountJob?.cancel()
+        if (creds == null) { _account.value = AccountState(info = null, xtream = false); return }
+        val cached = store.account(p.id)
+        _account.value = AccountState(info = cached, xtream = true, loading = cached == null)
+        if (!force && cached != null && System.currentTimeMillis() - cached.checkedAt < ACCOUNT_TTL_MS) return
+        accountJob = viewModelScope.launch {
+            val fresh = withContext(Dispatchers.IO) {
+                runCatching { XtreamApi(creds, p.userAgent).accountInfo() }.getOrNull()
+            }
+            if (fresh != null) store.saveAccount(p.id, fresh)
+            _account.value = AccountState(info = fresh ?: cached, xtream = true, loading = false)
+        }
+    }
+
+    /** Recalcula os eventos esportivos (o guia mudou, ou passou o tempo e algum começou/acabou). */
+    fun refreshSports() {
+        val epg = _epg.value.data
+        if (epg == null) {
+            if (!_epg.value.loading) _sports.value = emptyList()
+            return
+        }
+        val channels = live
+        sportsJob?.cancel()
+        sportsJob = viewModelScope.launch {
+            _sports.value = withContext(Dispatchers.Default) { SportsEvents.find(channels, epg) }
+        }
+    }
+
     private fun loadEpg(p: Playlist, tvgUrls: List<String>, force: Boolean, creds: XtreamCreds?) {
         epgJob?.cancel()
         if (_epg.value.data == null) _epg.update { it.copy(loading = true, error = null, noSource = false) }
@@ -248,6 +298,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     if (cached != null) {
                         Session.epg = cached
                         _epg.value = EpgState(loading = false, data = cached)
+                        refreshSports()
                         com.iptv.player4k.util.Perf.mark("guia (cache)")
                         if (epgRepo.isFresh(cached)) return@launch
                     }
@@ -256,10 +307,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 com.iptv.player4k.util.Perf.mark("guia pronto")
                 Session.epg = data
                 _epg.value = EpgState(loading = false, data = data, noSource = data == null)
+                refreshSports()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _epg.update { it.copy(loading = false, error = e.message ?: e.javaClass.simpleName) }
+                refreshSports()
             }
         }
     }
@@ -314,6 +367,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Chamado após PIN/configurações dos pais mudarem. */
     fun parentalChanged() {
         applyParental()
+        refreshSports()
         rebuild()
         contentChanged()
     }
@@ -360,6 +414,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        private const val ACCOUNT_TTL_MS = 6 * 60 * 60 * 1000L
         private const val AUTO_REFRESH_MS = 24 * 60 * 60 * 1000L
         const val GROUP_ALL = "\u0000all"
         const val GROUP_FAV = "\u0000fav"

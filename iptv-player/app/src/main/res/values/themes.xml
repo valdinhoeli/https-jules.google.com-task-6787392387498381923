@@ -53,6 +53,23 @@
         <item name="android:textStyle">bold</item>
     </style>
 
+    <!-- botões só com ícone no topo da tela inicial (Listas, Atualizar, Ajustes) -->
+    <style name="HomeIconButton" parent="GhostButton">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconSize">22dp</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="strokeColor">@color/home_btn_stroke</item>
+        <item name="strokeWidth">3dp</item>
+    </style>
+
     <style name="PosterShape">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">12dp</item>
