@@ -4,7 +4,29 @@ import com.iptv.player4k.data.Channel
 import com.iptv.player4k.util.Text
 import java.util.concurrent.ConcurrentHashMap
 
-class Programme(val start: Long, val stop: Long, val title: String, val desc: String?) {
+class Programme(
+    val start: Long,
+    val stop: Long,
+    val title: String,
+    val desc: String?,
+    /** marcas do XMLTV: [LIVE], [RERUN], [PREMIERE], [SPORT] */
+    val flags: Int = 0,
+) {
+    val isLiveBroadcast get() = flags and LIVE != 0
+    val isRerun get() = flags and RERUN != 0
+    val isSport get() = flags and SPORT != 0
+
+    companion object {
+        /** <live/>: transmissão ao vivo */
+        const val LIVE = 1
+        /** <previously-shown/>: reprise */
+        const val RERUN = 2
+        /** <premiere/> ou <new/>: inédito */
+        const val PREMIERE = 4
+        /** <category> de esporte */
+        const val SPORT = 8
+    }
+
     fun isLive(t: Long = System.currentTimeMillis()) = t in start until stop
     fun progress(t: Long = System.currentTimeMillis()): Float =
         if (stop <= start) 0f else ((t - start).toFloat() / (stop - start)).coerceIn(0f, 1f)

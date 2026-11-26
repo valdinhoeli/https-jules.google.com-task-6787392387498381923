@@ -32,12 +32,13 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
 
     private fun String?.orDefault() = this?.trim()?.trimStart('.')?.takeIf { it.isNotEmpty() } ?: "mp4"
 
-    fun download(action: String, dest: File) {
+    /** Baixa a resposta para [dest]; [wrap] permite gravar cifrado. */
+    fun download(action: String, dest: File, wrap: (java.io.OutputStream) -> java.io.OutputStream = { it }) {
         val tmp = File(dest.path + ".tmp")
         Http.playlistClient.newCall(request(apiUrl(action))).execute().use { r ->
             if (!r.isSuccessful) throw IOException("HTTP ${r.code}")
             val body = r.body ?: throw IOException("Resposta vazia")
-            body.byteStream().use { i -> tmp.outputStream().use { o -> i.copyTo(o) } }
+            body.byteStream().use { i -> wrap(tmp.outputStream()).use { o -> i.copyTo(o) } }
         }
         if (!tmp.renameTo(dest)) { tmp.copyTo(dest, true); tmp.delete() }
     }

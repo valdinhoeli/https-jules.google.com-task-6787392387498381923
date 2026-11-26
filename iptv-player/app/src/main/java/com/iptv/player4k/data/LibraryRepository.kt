@@ -79,7 +79,8 @@ class LibraryRepository(private val context: Context) {
             val stale = System.currentTimeMillis() - f.lastModified() > TTL
             if (network && (force || !f.exists() || f.length() == 0L || stale)) {
                 try {
-                    api.download(action, f)
+                    // catálogo do painel gravado cifrado (chave do Keystore)
+                    api.download(action, f) { com.iptv.player4k.security.Crypto.encryptingStream(context, it) }
                 } catch (e: Exception) {
                     lastError = e
                     if (!f.exists()) return null
@@ -88,10 +89,14 @@ class LibraryRepository(private val context: Context) {
             return f
         }
 
-        val vodCats = file("get_vod_categories")?.reader()?.use(XtreamApi::parseCategories) ?: emptyMap()
-        val movies = file("get_vod_streams")?.reader()?.use { XtreamApi.parseVodStreams(it, vodCats, api) } ?: emptyList()
-        val seriesCats = file("get_series_categories")?.reader()?.use(XtreamApi::parseCategories) ?: emptyMap()
-        val series = file("get_series")?.reader()?.use { XtreamApi.parseSeries(it, seriesCats) } ?: emptyList()
+        // lê cifrado (arquivos antigos, sem cifra, também abrem)
+        fun File.secureReader() = java.io.InputStreamReader(
+            com.iptv.player4k.security.Crypto.decryptingStream(context, inputStream().buffered()), Charsets.UTF_8,
+        )
+        val vodCats = file("get_vod_categories")?.secureReader()?.use(XtreamApi::parseCategories) ?: emptyMap()
+        val movies = file("get_vod_streams")?.secureReader()?.use { XtreamApi.parseVodStreams(it, vodCats, api) } ?: emptyList()
+        val seriesCats = file("get_series_categories")?.secureReader()?.use(XtreamApi::parseCategories) ?: emptyMap()
+        val series = file("get_series")?.secureReader()?.use { XtreamApi.parseSeries(it, seriesCats) } ?: emptyList()
 
         if (movies.isEmpty() && series.isEmpty()) lastError?.let { throw it }
         if (movies.isEmpty() && series.isEmpty() && lastError != null) throw IOException("API Xtream indisponível")

@@ -31,7 +31,9 @@ object PinDialog {
                 dialog.dismiss()
                 onOk()
             } else {
-                db.tilPin.error = activity.getString(R.string.pin_wrong)
+                val wait = store.pinLockRemainingMs()
+                db.tilPin.error = if (wait > 0) activity.getString(R.string.pin_locked, ((wait + 999) / 1000).toInt())
+                else activity.getString(R.string.pin_wrong)
                 db.etPin.setText("")
             }
         }

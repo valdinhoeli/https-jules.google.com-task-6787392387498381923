@@ -109,7 +109,8 @@ class EpgRepository(private val context: Context) {
     private fun writeCache(f: File, sig: Int, d: EpgData) {
         f.parentFile?.mkdirs()
         val tmp = File(f.path + ".tmp")
-        DataOutputStream(GZIPOutputStream(tmp.outputStream().buffered())).use { o ->
+        // guia gravado comprimido e cifrado
+        DataOutputStream(GZIPOutputStream(com.iptv.player4k.security.Crypto.encryptingStream(context, tmp.outputStream().buffered()))).use { o ->
             o.writeInt(VERSION); o.writeInt(sig); o.writeLong(d.updatedAt)
             o.writeInt(d.byId.size)
             d.byId.forEach { (id, list) ->
@@ -117,7 +118,7 @@ class EpgRepository(private val context: Context) {
                 o.writeInt(list.size)
                 list.forEach { p ->
                     o.writeLong(p.start); o.writeLong(p.stop)
-                    o.writeUTF(p.title.take(300)); o.writeUTF(p.desc.orEmpty())
+                    o.writeUTF(p.title.take(300)); o.writeUTF(p.desc.orEmpty()); o.writeByte(p.flags)
                 }
             }
             o.writeInt(d.nameIndex.size)
@@ -131,7 +132,7 @@ class EpgRepository(private val context: Context) {
     private fun readCache(f: File, sig: Int): EpgData? {
         if (!f.exists()) return null
         return runCatching {
-            DataInputStream(GZIPInputStream(f.inputStream().buffered())).use { i ->
+            DataInputStream(GZIPInputStream(com.iptv.player4k.security.Crypto.decryptingStream(context, f.inputStream().buffered()))).use { i ->
                 if (i.readInt() != VERSION || i.readInt() != sig) return null
                 val updated = i.readLong()
                 val n = i.readInt()
@@ -141,7 +142,7 @@ class EpgRepository(private val context: Context) {
                     val c = i.readInt()
                     byId[id] = List(c) {
                         val s = i.readLong(); val e = i.readLong()
-                        Programme(s, e, i.readUTF(), i.readUTF().ifEmpty { null })
+                        Programme(s, e, i.readUTF(), i.readUTF().ifEmpty { null }, i.readByte().toInt())
                     }
                 }
                 val m = i.readInt()
@@ -161,7 +162,7 @@ class EpgRepository(private val context: Context) {
 
     companion object {
         private val memo = java.util.concurrent.ConcurrentHashMap<String, EpgData>()
-        private const val VERSION = 2
+        private const val VERSION = 4
         private const val TTL = 12 * 60 * 60 * 1000L
         private const val BEFORE = 3 * 60 * 60 * 1000L
         private const val AFTER = 36 * 60 * 60 * 1000L

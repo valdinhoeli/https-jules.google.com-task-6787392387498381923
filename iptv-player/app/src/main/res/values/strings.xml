@@ -252,6 +252,18 @@
     <string name="home_settings">Ajustes</string>
     <string name="home_add_list">Adicione uma lista</string>
     <string name="home_loading">Carregando…</string>
+    <string name="pin_locked">Muitas tentativas erradas. Tente de novo em %1$d s</string>
+    <string name="home_kids">KIDS</string>
+    <string name="kids_channels">Canais infantis</string>
+    <string name="kids_movies">Filmes infantis</string>
+    <string name="kids_series">Séries infantis</string>
+    <string name="kids_badge">KIDS</string>
+    <string name="kids_empty">Nenhum conteúdo infantil encontrado nesta lista.\nO app procura grupos e categorias como Infantil, Kids, Desenhos, Animação e Família.</string>
+    <string name="kids_count">%1$s · %2$s</string>
+    <plurals name="kids_titles">
+        <item quantity="one">%d título</item>
+        <item quantity="other">%d títulos</item>
+    </plurals>
     <string name="home_recent">Adicionados recentemente</string>
     <string name="home_sports">Eventos esportivos</string>
     <string name="home_sports_loading">Procurando eventos no guia…</string>

@@ -84,6 +84,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _epg = MutableStateFlow(EpgState())
     val epg: StateFlow<EpgState> = _epg
 
+    /** Conteúdo infantil da lista (aba KIDS), já com o controle dos pais. */
+    private val _kids = MutableStateFlow(com.iptv.player4k.data.KidsContent.EMPTY)
+    val kids: StateFlow<com.iptv.player4k.data.KidsContent> = _kids
+    private var kidsJob: Job? = null
+
     private val _account = MutableStateFlow(AccountState())
     val account: StateFlow<AccountState> = _account
 
@@ -169,6 +174,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         accountJob?.cancel(); sportsJob?.cancel()
         _account.value = AccountState()
         _sports.value = null
+        kidsJob?.cancel()
+        _kids.value = com.iptv.player4k.data.KidsContent.EMPTY
     }
 
     /**
@@ -362,6 +369,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Session.allGroups = (liveAll.map { it.group } + all.filter { it.kind != ContentKind.LIVE }.map { it.group } +
             _library.value.library.movieCategories + _library.value.library.seriesCategories).distinct()
         _state.update { it.copy(totalCount = live.size) }
+        recomputeKids()
+    }
+
+    private fun recomputeKids() {
+        val channels = live
+        val lib = _library.value.library
+        val r = rules()
+        kidsJob?.cancel()
+        kidsJob = viewModelScope.launch {
+            _kids.value = withContext(Dispatchers.Default) {
+                val k = com.iptv.player4k.data.Kids.extract(channels, lib)
+                com.iptv.player4k.data.KidsContent(
+                    k.channels,
+                    k.movies.filter { !r.isBlocked(it.age, it.category) },
+                    k.series.filter { !r.isBlocked(it.age, it.category) },
+                )
+            }
+        }
     }
 
     /** Chamado após PIN/configurações dos pais mudarem. */

@@ -36,7 +36,9 @@ class TrailerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        videoId = intent.getStringExtra(EXTRA_ID) ?: run { finish(); return }
+        // só aceita um ID do YouTube válido (11 caracteres): nada de texto arbitrário dentro da página
+        videoId = intent.getStringExtra(EXTRA_ID)?.takeIf { com.iptv.player4k.util.Trailer.youtubeId(it) == it }
+            ?: run { finish(); return }
         b = try {
             ActivityTrailerBinding.inflate(layoutInflater)
         } catch (e: Exception) {
@@ -62,6 +64,13 @@ class TrailerActivity : AppCompatActivity() {
         w.settings.mediaPlaybackRequiresUserGesture = false
         w.settings.loadWithOverviewMode = true
         w.settings.useWideViewPort = true
+        // sem acesso a arquivos/conteúdo do aparelho pela página
+        w.settings.allowFileAccess = false
+        w.settings.allowContentAccess = false
+        @Suppress("DEPRECATION")
+        run { w.settings.allowFileAccessFromFileURLs = false; w.settings.allowUniversalAccessFromFileURLs = false }
+        w.settings.setGeolocationEnabled(false)
+        w.settings.savePassword = false
         w.setBackgroundColor(0xFF000000.toInt())
         w.webChromeClient = WebChromeClient()
         w.addJavascriptInterface(Bridge(), "App")
@@ -73,7 +82,9 @@ class TrailerActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
                 if (url.startsWith(BASE)) return false
-                openUrl(this@TrailerActivity, url)
+                // abre fora só links web (bloqueia intent://, file://, javascript: etc.)
+                val scheme = request.url?.scheme?.lowercase()
+                if (scheme == "https" || scheme == "http") openUrl(this@TrailerActivity, url)
                 return true
             }
         }

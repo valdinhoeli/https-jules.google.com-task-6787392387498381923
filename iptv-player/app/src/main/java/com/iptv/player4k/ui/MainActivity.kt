@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity() {
                 launch { vm.state.collect(::render) }
                 launch { kotlinx.coroutines.flow.combine(vm.state, vm.library, vm.contentVersion) { s, l, _ -> s to l }.collect { (s, l) -> renderHome(s, l) } }
                 launch { kotlinx.coroutines.flow.combine(vm.account, vm.state) { a, _ -> a }.collect(::renderExpiry) }
+                launch { kotlinx.coroutines.flow.combine(vm.kids, vm.library) { k, l -> k to l }.collect { (k, l) -> renderKidsCount(k, l) } }
                 launch { kotlinx.coroutines.flow.combine(vm.sports, vm.epg) { s, e -> s to e }.collect { (s, e) -> renderSports(s, e) } }
                 launch {
                     vm.messages.collect { msg -> Snackbar.make(b.root, msg, Snackbar.LENGTH_LONG).show() }
@@ -202,7 +203,7 @@ class MainActivity : AppCompatActivity() {
         h.tvHomeBrand.text = android.text.SpannableStringBuilder("IPTV Player  4K").apply {
             setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
         }
-        listOf(h.cardLive to SECTION_LIVE, h.cardMovies to SECTION_MOVIES, h.cardSeries to SECTION_SERIES).forEach { (card, sec) ->
+        listOf(h.cardLive to SECTION_LIVE, h.cardMovies to SECTION_MOVIES, h.cardSeries to SECTION_SERIES, h.cardKids to SECTION_KIDS).forEach { (card, sec) ->
             card.setOnClickListener {
                 if (vm.state.value.playlist == null) showPlaylistDialog(null) else showSection(sec)
             }
@@ -233,7 +234,7 @@ class MainActivity : AppCompatActivity() {
         val h = b.home
         h.tvHomeList.text = s.playlist?.name ?: ""
         if (s.playlist == null) {
-            listOf(h.tvCountLive, h.tvCountMovies, h.tvCountSeries).forEach { it.setText(R.string.home_add_list) }
+            listOf(h.tvCountLive, h.tvCountMovies, h.tvCountSeries, h.tvCountKids).forEach { it.setText(R.string.home_add_list) }
             return
         }
         h.tvCountLive.text = if (s.loading && s.totalCount == 0) getString(R.string.home_loading)
@@ -248,6 +249,16 @@ class MainActivity : AppCompatActivity() {
         if (recent.map { it.movie?.id ?: it.series?.id } != recentAdapter.items.map { it.movie?.id ?: it.series?.id }) recentAdapter.submit(recent)
         h.tvCountMovies.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_movies_count, movies, movies)
         h.tvCountSeries.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_series_count, series, series)
+    }
+
+    private fun renderKidsCount(k: com.iptv.player4k.data.KidsContent, lib: LibraryState) {
+        val tv = b.home.tvCountKids
+        if (vm.state.value.playlist == null) { tv.setText(R.string.home_add_list); return }
+        if (k.isEmpty && (lib.loading || vm.state.value.loading)) { tv.setText(R.string.home_loading); return }
+        val parts = ArrayList<String>(2)
+        if (k.titles > 0 || k.channels.isEmpty()) parts += resources.getQuantityString(R.plurals.kids_titles, k.titles, k.titles)
+        if (k.channels.isNotEmpty()) parts += resources.getQuantityString(R.plurals.channel_count, k.channels.size, k.channels.size)
+        tv.text = parts.joinToString(" · ")
     }
 
     /** Validade da lista (painel Xtream), com cor conforme os dias que faltam. */
@@ -356,13 +367,17 @@ class MainActivity : AppCompatActivity() {
             val card = when (previous) {
                 SECTION_MOVIES -> b.home.cardMovies
                 SECTION_SERIES -> b.home.cardSeries
+                SECTION_KIDS -> b.home.cardKids
                 else -> b.home.cardLive
             }
             card.post { card.requestFocus() }
             return
         }
         supportActionBar?.title = getString(
-            when (sec) { SECTION_MOVIES -> R.string.home_movies; SECTION_SERIES -> R.string.home_series; else -> R.string.home_live }
+            when (sec) {
+                SECTION_MOVIES -> R.string.home_movies; SECTION_SERIES -> R.string.home_series
+                SECTION_KIDS -> R.string.home_kids; else -> R.string.home_live
+            }
         )
         // Ao vivo: abas "Ao vivo" e "Guia"; Filmes/Séries: sem abas
         val live = sec == SECTION_LIVE
@@ -372,7 +387,12 @@ class MainActivity : AppCompatActivity() {
             SECTION_SERIES -> 2
             else -> if (vm.currentTab == 3) 3 else 0
         }
-        if (b.tabs.selectedTabPosition != target) b.tabs.getTabAt(target)?.select() else showTab(target)
+        when {
+            // KIDS não tem aba na barra: mostra a tela direto
+            sec == SECTION_KIDS -> showTab(4)
+            b.tabs.selectedTabPosition != target -> b.tabs.getTabAt(target)?.select()
+            else -> showTab(target)
+        }
         hideVodTabs()
         b.tabs.post { hideVodTabs() }
         invalidateOptionsMenu()
@@ -435,6 +455,7 @@ class MainActivity : AppCompatActivity() {
         1 -> VodFragment.newInstance(ContentKind.MOVIE)
         2 -> VodFragment.newInstance(ContentKind.SERIES)
         3 -> EpgFragment()
+        4 -> com.iptv.player4k.ui.kids.KidsFragment()
         else -> LiveFragment()
     }
 
@@ -499,6 +520,8 @@ class MainActivity : AppCompatActivity() {
         val has = vm.state.value.playlist != null
         listOf(R.id.action_search, R.id.action_refresh, R.id.action_edit, R.id.action_delete, R.id.action_multiview)
             .forEach { menu.findItem(it)?.isVisible = has }
+        // KIDS: sem busca (a tela já mostra todo o conteúdo infantil)
+        if (vm.section == SECTION_KIDS) menu.findItem(R.id.action_search)?.isVisible = false
         menu.findItem(R.id.action_lock)?.apply {
             isVisible = vm.store.hasPin && has
             val unlocked = ParentalSession.isUnlocked
@@ -703,5 +726,6 @@ class MainActivity : AppCompatActivity() {
         const val SECTION_LIVE = 1
         const val SECTION_MOVIES = 2
         const val SECTION_SERIES = 3
+        const val SECTION_KIDS = 4
     }
 }

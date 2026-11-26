@@ -80,6 +80,7 @@ object XmltvParser {
         val stop = if (keep) parseTime(xpp.getAttributeValue(null, "stop")) else -1L
         var title: String? = null
         var desc: String? = null
+        var flags = 0
         while (true) {
             val ev = xpp.next()
             if (ev == XmlPullParser.END_DOCUMENT) break
@@ -88,12 +89,16 @@ object XmltvParser {
                 when (xpp.name) {
                     "title" -> if (title == null) title = xpp.nextText().trim()
                     "desc" -> if (desc == null) desc = xpp.nextText().trim().take(600)
+                    "live" -> flags = flags or Programme.LIVE
+                    "previously-shown" -> flags = flags or Programme.RERUN
+                    "premiere", "new" -> flags = flags or Programme.PREMIERE
+                    "category" -> if (SportsEvents.isSportCategory(xpp.nextText())) flags = flags or Programme.SPORT
                 }
             }
         }
         if (!keep || start < 0 || stop <= start || stop <= from || start >= to) return
         if (ch!! !in b.keptIds) b.keptIds += ch
-        b.byId.getOrPut(ch) { ArrayList() } += Programme(start, stop, title ?: "Sem título", desc?.ifEmpty { null })
+        b.byId.getOrPut(ch) { ArrayList() } += Programme(start, stop, title ?: "Sem título", desc?.ifEmpty { null }, flags)
     }
 
     /** "20261125143000 +0300" -> epoch ms (sem SimpleDateFormat, para ser rápido). */

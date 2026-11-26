@@ -190,13 +190,51 @@ class PlaylistStore(context: Context) {
         set(v) = prefs.edit().putBoolean("set_secure_screen", v).apply()
 
     // ---- Controle dos pais ----
-    val hasPin: Boolean get() = !prefs.getString("pin", null).isNullOrEmpty()
+    // O hash do PIN (com sal) fica cifrado com a chave do Keystore: copiar o arquivo do app
+    // para outro aparelho não permite testar PINs fora dele. "pin" = formato antigo (só hash).
+    val hasPin: Boolean get() = prefs.contains(K_PIN_SECURE) || !prefs.getString("pin", null).isNullOrEmpty()
 
-    fun checkPin(pin: String) = Pin.verify(pin, prefs.getString("pin", null))
+    /**
+     * Confere o PIN. Depois de [PIN_FREE_TRIES] erros seguidos, bloqueia por 30 s, dobrando a cada
+     * novo erro (até 15 min) — inclusive se o app for fechado e aberto de novo.
+     */
+    fun checkPin(pin: String): Boolean {
+        if (pinLockRemainingMs() > 0) return false
+        val stored = if (prefs.contains(K_PIN_SECURE)) getSecure(K_PIN_SECURE) else prefs.getString("pin", null)
+        val ok = Pin.verify(pin, stored)
+        if (ok) {
+            prefs.edit().remove(K_PIN_FAILS).remove(K_PIN_LOCK).apply()
+            // migra o formato antigo para o cifrado
+            if (!prefs.contains(K_PIN_SECURE)) setPin(pin)
+        } else {
+            val fails = prefs.getInt(K_PIN_FAILS, 0) + 1
+            val e = prefs.edit().putInt(K_PIN_FAILS, fails)
+            if (fails >= PIN_FREE_TRIES) {
+                val wait = (30_000L shl (fails - PIN_FREE_TRIES).coerceAtMost(5)).coerceAtMost(15 * 60_000L)
+                e.putLong(K_PIN_LOCK, android.os.SystemClock.elapsedRealtime() + wait)
+                e.putLong(K_PIN_LOCK_WALL, System.currentTimeMillis() + wait)
+            }
+            e.apply()
+        }
+        return ok
+    }
+
+    /** Tempo que falta do bloqueio por erros (0 = pode tentar). Resiste a reinício e a mudar o relógio. */
+    fun pinLockRemainingMs(): Long {
+        val lockMono = prefs.getLong(K_PIN_LOCK, 0L)
+        if (lockMono == 0L) return 0L
+        val max = 15 * 60_000L
+        val el = android.os.SystemClock.elapsedRealtime()
+        // mesmo boot (o relógio monotônico só cresce): ignora mudanças no relógio do aparelho
+        if (el >= lockMono - max) return (lockMono - el).coerceIn(0L, max)
+        // o aparelho reiniciou: usa o relógio de parede
+        return (prefs.getLong(K_PIN_LOCK_WALL, 0L) - System.currentTimeMillis()).coerceIn(0L, max)
+    }
 
     fun setPin(pin: String?) {
-        if (pin == null) prefs.edit().remove("pin").apply()
-        else prefs.edit().putString("pin", Pin.hash(pin)).apply()
+        val e = prefs.edit().remove("pin").remove(K_PIN_FAILS).remove(K_PIN_LOCK).remove(K_PIN_LOCK_WALL)
+        if (pin == null) e.remove(K_PIN_SECURE).apply()
+        else { e.apply(); putSecure(K_PIN_SECURE, Pin.hash(pin)) }
     }
 
     /** Idade máxima permitida (0 = Livre … 18 = sem limite). */
@@ -231,6 +269,11 @@ class PlaylistStore(context: Context) {
         set(v) = prefs.edit().putInt("set_resize", v).apply()
 
     companion object {
+        private const val K_PIN_SECURE = "pin_s"
+        private const val K_PIN_FAILS = "pin_fails"
+        private const val K_PIN_LOCK = "pin_lock"
+        private const val K_PIN_LOCK_WALL = "pin_lock_wall"
+        const val PIN_FREE_TRIES = 5
         private const val K_PLAYLISTS = "playlists"
         private const val K_SELECTED = "selected"
         private const val MAX_RECENTS = 40
