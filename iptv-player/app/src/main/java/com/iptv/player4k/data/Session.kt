@@ -15,4 +15,6 @@ object Session {
     @Volatile var allGroups: List<String> = emptyList()
     /** "Quem está assistindo?" já foi mostrado nesta abertura do app */
     @Volatile var profileAsked: Boolean = false
+    /** Perfil com senha que já foi aberto (com a senha) nesta execução do app */
+    @Volatile var unlockedProfileId: String? = null
 }

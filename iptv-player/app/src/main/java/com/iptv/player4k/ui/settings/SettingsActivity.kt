@@ -68,6 +68,8 @@ class SettingsActivity : AppCompatActivity() {
         switch(R.drawable.ic_pip, R.string.set_pip, R.string.set_pip_sum, store.pipEnabled) { store.pipEnabled = it }
 
         header(R.string.sec_parental)
+        // com perfis, estas regras são do perfil em uso (cada perfil tem as suas)
+        if (store.profiles().size > 1) info(getString(R.string.par_profile_rules, store.currentProfile.name))
         if (!store.hasPin) {
             row(R.drawable.ic_lock, getString(R.string.par_create_pin), getString(R.string.par_create_pin_sum)) {
                 PinDialog.create(this) { pin ->
@@ -210,9 +212,11 @@ class SettingsActivity : AppCompatActivity() {
         b.container.addView(tv)
     }
 
-    private fun info(res: Int) {
+    private fun info(res: Int) = info(getString(res))
+
+    private fun info(text: String) {
         val tv = TextView(this).apply {
-            setText(res)
+            this.text = text
             setTextColor(getColor(R.color.text_secondary))
             textSize = 12f
             val d = resources.displayMetrics.density

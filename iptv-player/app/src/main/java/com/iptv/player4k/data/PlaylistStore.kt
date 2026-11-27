@@ -252,37 +252,66 @@ class PlaylistStore(context: Context) {
      * novo erro (até 15 min) — inclusive se o app for fechado e aberto de novo.
      */
     fun checkPin(pin: String): Boolean {
-        if (pinLockRemainingMs() > 0) return false
         val stored = if (prefs.contains(K_PIN_SECURE)) getSecure(K_PIN_SECURE) else prefs.getString("pin", null)
+        val ok = verifyWithLockout(pin, stored, "")
+        // migra o formato antigo para o cifrado
+        if (ok && !prefs.contains(K_PIN_SECURE)) setPin(pin)
+        return ok
+    }
+
+    /** Tempo que falta do bloqueio por erros (0 = pode tentar). Resiste a reinício e a mudar o relógio. */
+    fun pinLockRemainingMs(): Long = lockRemaining("")
+
+    /** Confere [pin] contra [stored]; erros seguidos bloqueiam (contadores separados por [tag]). */
+    private fun verifyWithLockout(pin: String, stored: String?, tag: String): Boolean {
+        if (lockRemaining(tag) > 0) return false
         val ok = Pin.verify(pin, stored)
+        val fk = K_PIN_FAILS + tag; val lk = K_PIN_LOCK + tag; val wk = K_PIN_LOCK_WALL + tag
         if (ok) {
-            prefs.edit().remove(K_PIN_FAILS).remove(K_PIN_LOCK).remove(K_PIN_LOCK_WALL).apply()
-            // migra o formato antigo para o cifrado
-            if (!prefs.contains(K_PIN_SECURE)) setPin(pin)
+            prefs.edit().remove(fk).remove(lk).remove(wk).apply()
         } else {
-            val fails = prefs.getInt(K_PIN_FAILS, 0) + 1
-            val e = prefs.edit().putInt(K_PIN_FAILS, fails)
+            val fails = prefs.getInt(fk, 0) + 1
+            val e = prefs.edit().putInt(fk, fails)
             if (fails >= PIN_FREE_TRIES) {
                 val wait = (30_000L shl (fails - PIN_FREE_TRIES).coerceAtMost(5)).coerceAtMost(15 * 60_000L)
-                e.putLong(K_PIN_LOCK, android.os.SystemClock.elapsedRealtime() + wait)
-                e.putLong(K_PIN_LOCK_WALL, System.currentTimeMillis() + wait)
+                e.putLong(lk, android.os.SystemClock.elapsedRealtime() + wait)
+                e.putLong(wk, System.currentTimeMillis() + wait)
             }
             e.apply()
         }
         return ok
     }
 
-    /** Tempo que falta do bloqueio por erros (0 = pode tentar). Resiste a reinício e a mudar o relógio. */
-    fun pinLockRemainingMs(): Long {
-        val lockMono = prefs.getLong(K_PIN_LOCK, 0L)
+    private fun lockRemaining(tag: String): Long {
+        val lockMono = prefs.getLong(K_PIN_LOCK + tag, 0L)
         if (lockMono == 0L) return 0L
         val max = 15 * 60_000L
         val el = android.os.SystemClock.elapsedRealtime()
         // mesmo boot (o relógio monotônico só cresce): ignora mudanças no relógio do aparelho
         if (el >= lockMono - max) return (lockMono - el).coerceIn(0L, max)
         // o aparelho reiniciou: usa o relógio de parede
-        return (prefs.getLong(K_PIN_LOCK_WALL, 0L) - System.currentTimeMillis()).coerceIn(0L, max)
+        return (prefs.getLong(K_PIN_LOCK_WALL + tag, 0L) - System.currentTimeMillis()).coerceIn(0L, max)
     }
+
+    // ---- Senha de cada perfil ("Bloquear perfil") ----
+    private fun profilePinKey(id: String) = keyFor("ppin", id)
+
+    fun profileLocked(id: String): Boolean = prefs.contains(profilePinKey(id))
+
+    fun setProfilePin(id: String, pin: String?) {
+        val tag = "~p~$id"
+        val e = prefs.edit().remove(K_PIN_FAILS + tag).remove(K_PIN_LOCK + tag).remove(K_PIN_LOCK_WALL + tag)
+        if (pin == null) e.remove(profilePinKey(id)).apply()
+        else { e.apply(); putSecure(profilePinKey(id), Pin.hash(pin)) }
+    }
+
+    fun checkProfilePin(id: String, pin: String): Boolean =
+        verifyWithLockout(pin, getSecure(profilePinKey(id)), "~p~$id")
+
+    fun profilePinLockRemainingMs(id: String): Long = lockRemaining("~p~$id")
+
+    /** Chave de um ajuste de um perfil: o principal usa a chave antiga, os outros ganham "~id". */
+    private fun keyFor(base: String, profileId: String) = if (profileId.isEmpty()) base else "$base~$profileId"
 
     fun setPin(pin: String?) {
         val e = prefs.edit().remove("pin").remove(K_PIN_FAILS).remove(K_PIN_LOCK).remove(K_PIN_LOCK_WALL)
@@ -292,23 +321,31 @@ class PlaylistStore(context: Context) {
 
     /** Idade máxima permitida (0 = Livre … 18 = sem limite). */
     var maxAge: Int
-        get() = prefs.getInt("par_max_age", 18)
-        set(v) = prefs.edit().putInt("par_max_age", v).apply()
+        get() = maxAgeOf(currentProfileId)
+        set(v) = setMaxAgeOf(currentProfileId, v)
 
     var autoLockAdult: Boolean
-        get() = prefs.getBoolean("par_adult", true)
-        set(v) = prefs.edit().putBoolean("par_adult", v).apply()
+        get() = adultLockOf(currentProfileId)
+        set(v) = setAdultLockOf(currentProfileId, v)
+
+    // Controle dos pais de cada perfil (classificação, adulto e grupos)
+    fun maxAgeOf(profileId: String): Int = prefs.getInt(keyFor("par_max_age", profileId), 18)
+    fun setMaxAgeOf(profileId: String, v: Int) = prefs.edit().putInt(keyFor("par_max_age", profileId), v).apply()
+    fun adultLockOf(profileId: String): Boolean = prefs.getBoolean(keyFor("par_adult", profileId), true)
+    fun setAdultLockOf(profileId: String, v: Boolean) = prefs.edit().putBoolean(keyFor("par_adult", profileId), v).apply()
+    fun lockedGroupsOf(profileId: String, playlistId: String): Set<String> =
+        prefs.getStringSet(keyFor("lock_$playlistId", profileId), emptySet())?.toSet() ?: emptySet()
+    fun setLockedGroupsOf(profileId: String, playlistId: String, groups: Set<String>) =
+        prefs.edit().putStringSet(keyFor("lock_$playlistId", profileId), groups).apply()
 
     /** Pede o PIN para adicionar/editar/excluir listas (protege servidor, usuário e senha). */
     var protectLists: Boolean
         get() = prefs.getBoolean("par_protect_lists", true)
         set(v) = prefs.edit().putBoolean("par_protect_lists", v).apply()
 
-    fun lockedGroups(playlistId: String): Set<String> =
-        prefs.getStringSet("lock_$playlistId", emptySet())?.toSet() ?: emptySet()
+    fun lockedGroups(playlistId: String): Set<String> = lockedGroupsOf(currentProfileId, playlistId)
 
-    fun setLockedGroups(playlistId: String, groups: Set<String>) =
-        prefs.edit().putStringSet("lock_$playlistId", groups).apply()
+    fun setLockedGroups(playlistId: String, groups: Set<String>) = setLockedGroupsOf(currentProfileId, playlistId, groups)
 
     // ---- Multi-tela ----
     fun multiViewSlots(): List<String> =

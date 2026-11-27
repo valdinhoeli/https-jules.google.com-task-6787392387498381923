@@ -17,22 +17,41 @@ object PinDialog {
     fun require(activity: Activity, message: Int = R.string.pin_required, onOk: () -> Unit) {
         val store = PlaylistStore(activity)
         if (!store.hasPin) { onOk(); return }
+        ask(activity, activity.getString(R.string.pin_title), activity.getString(message),
+            { store.checkPin(it) }, { store.pinLockRemainingMs() }, onCancel = null, onOk = onOk)
+    }
+
+    /** Senha do perfil (quando "Bloquear perfil" está ligado). Sem senha, executa direto. */
+    fun requireProfile(activity: Activity, profile: com.iptv.player4k.data.Profile, onCancel: (() -> Unit)? = null, onOk: () -> Unit) {
+        val store = PlaylistStore(activity)
+        if (!store.profileLocked(profile.id)) { onOk(); return }
+        ask(activity, activity.getString(R.string.profile_pin_title, profile.name), activity.getString(R.string.profile_pin_ask),
+            { store.checkProfilePin(profile.id, it) }, { store.profilePinLockRemainingMs(profile.id) }, onCancel, onOk)
+    }
+
+    private fun ask(
+        activity: Activity, title: String, message: String,
+        verify: (String) -> Boolean, remaining: () -> Long, onCancel: (() -> Unit)?, onOk: () -> Unit,
+    ) {
         val db = DialogPinBinding.inflate(activity.layoutInflater)
         com.iptv.player4k.security.SecureField.protect(db.etPin)
-        db.tvPinHint.setText(message)
+        db.tvPinHint.text = message
+        var passed = false
         val dialog = MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.pin_title)
+            .setTitle(title)
             .setView(db.root)
             .setPositiveButton(R.string.ok, null)
             .setNegativeButton(R.string.cancel, null)
             .create()
+        dialog.setOnDismissListener { if (!passed) onCancel?.invoke() }
         fun check() {
             val pin = db.etPin.text?.toString().orEmpty()
-            if (store.checkPin(pin)) {
+            if (verify(pin)) {
+                passed = true
                 dialog.dismiss()
                 onOk()
             } else {
-                val wait = store.pinLockRemainingMs()
+                val wait = remaining()
                 db.tilPin.error = if (wait > 0) activity.getString(R.string.pin_locked, ((wait + 999) / 1000).toInt())
                 else activity.getString(R.string.pin_wrong)
                 db.etPin.setText("")
@@ -48,17 +67,19 @@ object PinDialog {
     }
 
     /** Cadastro de PIN novo (digitado duas vezes). */
-    fun create(activity: Activity, onDone: (String) -> Unit) {
+    fun create(activity: Activity, title: Int = R.string.pin_create_title, onCancel: (() -> Unit)? = null, onDone: (String) -> Unit) {
         val db = DialogPinBinding.inflate(activity.layoutInflater)
         com.iptv.player4k.security.SecureField.protect(db.etPin)
         db.tvPinHint.setText(R.string.pin_create_hint)
         var first: String? = null
+        var done = false
         val dialog = MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.pin_create_title)
+            .setTitle(title)
             .setView(db.root)
             .setPositiveButton(R.string.ok, null)
             .setNegativeButton(R.string.cancel, null)
             .create()
+        dialog.setOnDismissListener { if (!done) onCancel?.invoke() }
         fun next() {
             val pin = db.etPin.text?.toString().orEmpty()
             db.tilPin.error = null
@@ -71,6 +92,7 @@ object PinDialog {
                 db.etPin.setText("")
                 db.tvPinHint.setText(R.string.pin_confirm_hint)
             } else if (first == pin) {
+                done = true
                 dialog.dismiss()
                 onDone(pin)
             } else {

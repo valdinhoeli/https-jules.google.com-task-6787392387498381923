@@ -358,5 +358,17 @@
     <string name="profile_pin_manage">Digite o PIN para gerenciar os perfis</string>
     <string name="profile_pin_leave_kids">Digite o PIN para sair do perfil KIDS</string>
     <string name="profile_kids_no_list">Peça a um adulto para adicionar uma lista no perfil dele</string>
+    <string name="profile_pin_title">Senha do perfil %s</string>
+    <string name="profile_pin_ask">Este perfil é bloqueado. Digite a senha dele para entrar.</string>
+    <string name="profile_locked_desc">Perfil com senha</string>
+    <string name="profile_lock">Bloquear perfil com senha</string>
+    <string name="profile_lock_create">Senha do perfil</string>
+    <string name="profile_lock_info">Sempre que alguém voltar para este perfil (ou abrir o app nele), a senha será pedida. Esqueceu a senha? Em Gerenciar perfis, o PIN dos pais permite removê-la.</string>
+    <string name="profile_lock_info_nopin">Sempre que alguém voltar para este perfil (ou abrir o app nele), a senha será pedida. Crie também um PIN dos pais em Ajustes: ele permite remover a senha se ela for esquecida.</string>
+    <string name="profile_parental">CONTROLE DOS PAIS DESTE PERFIL</string>
+    <string name="profile_parental_info">Valem só para este perfil: classificação etária, conteúdo adulto e grupos de canais bloqueados.</string>
+    <string name="profile_parental_main">No perfil Principal estas regras valem quando há um PIN dos pais (Ajustes → Controle dos pais).</string>
+    <string name="profile_groups_need_list">Abra uma lista primeiro para escolher os grupos</string>
+    <string name="par_profile_rules">Regras do perfil em uso: %s. Para os outros perfis, use Gerenciar perfis.</string>
     <string name="home_profile">Trocar de perfil</string>
 </resources>

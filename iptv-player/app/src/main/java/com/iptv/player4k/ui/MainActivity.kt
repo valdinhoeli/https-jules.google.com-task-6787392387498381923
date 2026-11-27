@@ -108,7 +108,10 @@ class MainActivity : AppCompatActivity() {
         // tela recriada pelo sistema: não reabre o último canal de novo
         if (savedInstanceState != null) vm.autoStartDone = true
         // vários perfis: pergunta quem está assistindo ao abrir o app
-        if (savedInstanceState == null && !com.iptv.player4k.data.Session.profileAsked && vm.store.profiles().size > 1) {
+        // perfil com senha: pergunta sempre ao abrir (também se o sistema recriou o app)
+        val cur = vm.store.currentProfileId
+        val lockedNow = vm.store.profileLocked(cur) && com.iptv.player4k.data.Session.unlockedProfileId != cur
+        if (lockedNow || (!com.iptv.player4k.data.Session.profileAsked && savedInstanceState == null && vm.store.profiles().size > 1)) {
             com.iptv.player4k.data.Session.profileAsked = true
             waitingProfile = true
         }

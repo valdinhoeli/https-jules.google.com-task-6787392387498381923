@@ -14,8 +14,8 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 | ![](docs/home.png) | ![](docs/esportes-tv.png) | ![](docs/novelas-tv.png) |
 | **KIDS** | **Trocar de grupo sem sair do canal** | **Ajustes → Sobre o aplicativo** |
 | ![](docs/kids-tv.png) | ![](docs/player-grupos.png) | ![](docs/sobre-tv.png) |
-| **Perfis: quem está assistindo?** | | |
-| ![](docs/perfis-tv.png) | | |
+| **Perfis: quem está assistindo?** | **Controle dos pais e senha do perfil** | |
+| ![](docs/perfis-tv.png) | ![](docs/perfil-controle-pais-tv.png) | |
 
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
@@ -33,7 +33,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `Eli-Player-4K-v1.9.0.apk` (pasta `release/`). Ele atualiza por cima das versões
+1. Baixe o APK `Eli-Player-4K-v1.10.0.apk` (pasta `release/`). Ele atualiza por cima das versões
    anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
@@ -50,6 +50,14 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.10.0 — controle dos pais e senha por perfil**
+- Gerenciar perfis → editar: "Controle dos pais deste perfil" com classificação etária,
+  bloqueio de categorias adultas e escolha dos grupos de canais bloqueados (cada perfil tem os seus)
+- "Bloquear perfil com senha": sempre que alguém sair do perfil e voltar para ele, ou abrir
+  o app nele, a senha é pedida (Voltar na tela de perfis fecha o app; 5 erros → espera crescente)
+- Esqueceu a senha? Com PIN dos pais, Gerenciar perfis permite removê-la
+- Ajustes → Controle dos pais mostra e altera as regras do perfil em uso
 
 **1.9.0 — perfis**
 - "Quem está assistindo?" ao abrir o app (quando há mais de um perfil) e no botão com a inicial

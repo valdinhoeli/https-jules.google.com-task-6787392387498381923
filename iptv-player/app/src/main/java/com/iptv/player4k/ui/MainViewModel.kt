@@ -386,11 +386,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Regras atuais (desligadas sem PIN ou quando desbloqueado pelo PIN). */
     fun rules(): ParentalRules {
         val pid = state.value.playlist?.id.orEmpty()
+        val profile = store.currentProfile
         // perfil KIDS: sempre restrito (mesmo sem PIN ou com o PIN desbloqueado)
-        if (store.currentProfile.kids) return ParentalRules(
+        if (profile.kids) return ParentalRules(
             true, minOf(store.maxAge, com.iptv.player4k.data.Profile.KIDS_MAX_AGE), true, store.lockedGroups(pid),
         )
-        if (!store.hasPin || ParentalSession.isUnlocked) return ParentalRules.OPEN
+        // regras de um perfil criado valem sempre; no Principal, só com o PIN dos pais (como antes)
+        val active = store.hasPin || profile.id != com.iptv.player4k.data.Profile.MAIN_ID
+        if (!active || ParentalSession.isUnlocked) return ParentalRules.OPEN
         return ParentalRules(true, store.maxAge, store.autoLockAdult, store.lockedGroups(pid))
     }
 

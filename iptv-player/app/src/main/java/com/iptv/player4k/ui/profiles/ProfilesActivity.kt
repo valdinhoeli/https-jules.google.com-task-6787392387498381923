@@ -77,8 +77,17 @@ class ProfilesActivity : AppCompatActivity() {
         root.addView(col, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         setContentView(root)
         TvSafeArea.pad(root, left = 40, top = 27, right = 40, bottom = 27)
+        // abertura do app num perfil com senha: voltar fecha o app (não entra sem a senha)
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (managing) { managing = false; render(); return }
+                if (startup && store.profileLocked(store.currentProfileId)) finishAffinity() else finish()
+            }
+        })
         render()
     }
+
+    private val startup get() = intent.getBooleanExtra(EXTRA_STARTUP, false)
 
     private fun render() {
         title.setText(if (managing) R.string.profiles_manage_title else R.string.profiles_title)
@@ -176,6 +185,13 @@ class ProfilesActivity : AppCompatActivity() {
                 setPadding(dp(6), dp(6), dp(6), dp(6))
             }, FrameLayout.LayoutParams(dp(32), dp(32), Gravity.BOTTOM or Gravity.END))
         }
+        if (store.profileLocked(p.id)) av.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_lock)
+            setColorFilter(getColor(android.R.color.white))
+            setBackgroundResource(R.drawable.bg_round_dark)
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+            contentDescription = getString(R.string.profile_locked_desc)
+        }, FrameLayout.LayoutParams(dp(32), dp(32), Gravity.TOP or Gravity.END))
         val current = p.id == store.currentProfileId
         val badge = when {
             p.kids && current -> getString(R.string.profile_kids_badge) + " · " + getString(R.string.profile_current)
@@ -183,7 +199,7 @@ class ProfilesActivity : AppCompatActivity() {
             current -> getString(R.string.profile_current)
             else -> null
         }
-        return baseTile("p:${p.id}", p.name, av, badge) { if (managing) edit(p) else choose(p) }
+        return baseTile("p:${p.id}", p.name, av, badge) { if (managing) editGuarded(p) else choose(p) }
     }
 
     private fun addTile(): View = baseTile(
@@ -197,14 +213,28 @@ class ProfilesActivity : AppCompatActivity() {
 
     private fun choose(p: Profile) {
         val cur = store.currentProfile
-        if (p.id == cur.id) { finish(); return }
-        val switch = {
-            store.currentProfileId = p.id
-            setResult(RESULT_OK)
-            finish()
+        // mesmo perfil: entra direto, a não ser na abertura do app com o perfil bloqueado
+        if (p.id == cur.id && !(startup && store.profileLocked(p.id))) { finish(); return }
+        val enter = {
+            // perfil com senha: sempre pede ao voltar para ele
+            PinDialog.requireProfile(this, p) {
+                com.iptv.player4k.data.Session.unlockedProfileId = if (store.profileLocked(p.id)) p.id else null
+                if (p.id != cur.id) {
+                    store.currentProfileId = p.id
+                    // desbloqueio do PIN dos pais não passa de um perfil para outro
+                    com.iptv.player4k.security.ParentalSession.lock()
+                    setResult(RESULT_OK)
+                }
+                finish()
+            }
         }
         // sair do perfil KIDS para um perfil comum exige o PIN dos pais
-        if (cur.kids && !p.kids) PinDialog.require(this, R.string.profile_pin_leave_kids) { switch() } else switch()
+        if (cur.kids && !p.kids) PinDialog.require(this, R.string.profile_pin_leave_kids) { enter() } else enter()
+    }
+
+    /** Editar um perfil com senha: sem PIN dos pais (que já foi pedido em Gerenciar), pede a senha dele. */
+    private fun editGuarded(p: Profile) {
+        if (store.profileLocked(p.id) && !store.hasPin) PinDialog.requireProfile(this, p) { edit(p) } else edit(p)
     }
 
     private fun withPin(action: () -> Unit) {
@@ -214,7 +244,7 @@ class ProfilesActivity : AppCompatActivity() {
 
     /** Criar (p == null) ou editar um perfil. */
     private fun edit(p: Profile?) {
-        val v = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), 0) }
+        val v = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(8)) }
         val til = TextInputLayout(this).apply { hint = getString(R.string.profile_name) }
         val et = TextInputEditText(til.context).apply {
             setText(p?.name.orEmpty())
@@ -261,9 +291,89 @@ class ProfilesActivity : AppCompatActivity() {
             setTextColor(getColor(R.color.text_secondary))
             textSize = 12f
         })
+
+        // ---- Bloquear perfil com senha ----
+        val wasLocked = p != null && store.profileLocked(p.id)
+        var newPin: String? = null
+        val lock = SwitchMaterial(this).apply {
+            setText(R.string.profile_lock)
+            isChecked = wasLocked
+            setPadding(0, dp(16), 0, 0)
+        }
+        lock.setOnCheckedChangeListener { sw, on ->
+            if (on && !wasLocked && newPin == null) {
+                PinDialog.create(this, R.string.profile_lock_create, onCancel = { sw.isChecked = false }) { pin -> newPin = pin }
+            }
+        }
+        v.addView(lock)
+        v.addView(TextView(this).apply {
+            setText(if (store.hasPin) R.string.profile_lock_info else R.string.profile_lock_info_nopin)
+            setTextColor(getColor(R.color.text_secondary))
+            textSize = 12f
+        })
+
+        // ---- Controle dos pais deste perfil ----
+        val profileId = p?.id
+        val playlistId = com.iptv.player4k.data.Session.playlist?.id.orEmpty()
+        var age = if (profileId != null) store.maxAgeOf(profileId) else 18
+        var adult = if (profileId != null) store.adultLockOf(profileId) else true
+        var groups = if (profileId != null && playlistId.isNotEmpty()) store.lockedGroupsOf(profileId, playlistId) else emptySet()
+        v.addView(TextView(this).apply {
+            setText(R.string.profile_parental)
+            setTextColor(getColor(R.color.accent))
+            textSize = 13f
+            letterSpacing = 0.08f
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(0, dp(22), 0, dp(2))
+        })
+        v.addView(TextView(this).apply {
+            setText(if (p?.id == Profile.MAIN_ID) R.string.profile_parental_main else R.string.profile_parental_info)
+            setTextColor(getColor(R.color.text_secondary))
+            textSize = 12f
+        })
+        fun ageLabel() = getString(R.string.par_max_age) + ": " +
+            if (age >= 18) getString(R.string.par_no_limit) else getString(R.string.par_up_to, com.iptv.player4k.security.AgeRating.name(age))
+        fun groupsLabel() = resources.getQuantityString(R.plurals.par_groups_sum, groups.size, groups.size)
+        fun rowButton(text: String, onClick: (MaterialButton) -> Unit) =
+            MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                this.text = text
+                isAllCaps = false
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                setOnClickListener { onClick(this) }
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = dp(8) }
+            }
+        v.addView(rowButton(ageLabel()) { btn ->
+            val levels = com.iptv.player4k.security.AgeRating.LEVELS
+            val labels = levels.map { if (it >= 18) getString(R.string.par_no_limit) else getString(R.string.par_up_to, com.iptv.player4k.security.AgeRating.name(it)) }
+            MaterialAlertDialogBuilder(this).setTitle(R.string.par_max_age)
+                .setSingleChoiceItems(labels.toTypedArray(), levels.indexOf(age).coerceAtLeast(0)) { d, which ->
+                    age = levels[which]; btn.text = ageLabel(); d.dismiss()
+                }.show()
+        })
+        val adultSw = SwitchMaterial(this).apply {
+            setText(R.string.par_adult)
+            isChecked = adult
+            setOnCheckedChangeListener { _, on -> adult = on }
+            setPadding(0, dp(10), 0, 0)
+        }
+        v.addView(adultSw)
+        v.addView(rowButton(groupsLabel()) { btn ->
+            val all = com.iptv.player4k.data.Session.allGroups
+            if (playlistId.isEmpty() || all.isEmpty()) {
+                Toast.makeText(this, R.string.profile_groups_need_list, Toast.LENGTH_LONG).show(); return@rowButton
+            }
+            val checked = BooleanArray(all.size) { all[it] in groups }
+            MaterialAlertDialogBuilder(this).setTitle(R.string.par_groups)
+                .setMultiChoiceItems(all.map { g -> if (com.iptv.player4k.security.AgeRating.isAdult(g)) "$g  (+18)" else g }.toTypedArray(), checked) { _, i, on -> checked[i] = on }
+                .setPositiveButton(R.string.ok) { _, _ -> groups = all.filterIndexed { i, _ -> checked[i] }.toSet(); btn.text = groupsLabel() }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        })
+        val scroll = ScrollView(this).apply { addView(v) }
         val b = MaterialAlertDialogBuilder(this)
             .setTitle(if (p == null) R.string.profile_add else R.string.profile_edit)
-            .setView(v)
+            .setView(scroll)
             .setPositiveButton(R.string.save, null)
             .setNegativeButton(R.string.cancel, null)
         if (p != null && p.id != Profile.MAIN_ID) b.setNeutralButton(R.string.profile_delete) { _, _ -> confirmDelete(p) }
@@ -275,8 +385,18 @@ class ProfilesActivity : AppCompatActivity() {
                 if (store.profiles().any { it.name.equals(name, true) && it.id != p?.id }) {
                     til.error = getString(R.string.profile_name_taken); return@setOnClickListener
                 }
+                if (lock.isChecked && !wasLocked && newPin == null) return@setOnClickListener
                 val id = p?.id ?: java.util.UUID.randomUUID().toString().take(8)
                 store.saveProfile(Profile(id, name, color, kids.isChecked))
+                store.setMaxAgeOf(id, age)
+                store.setAdultLockOf(id, adult)
+                if (playlistId.isNotEmpty()) store.setLockedGroupsOf(id, playlistId, groups)
+                // quem acabou de criar a senha do perfil em uso não precisa digitá-la de novo agora
+                if (lock.isChecked && newPin != null && id == store.currentProfileId) com.iptv.player4k.data.Session.unlockedProfileId = id
+                when {
+                    lock.isChecked && newPin != null -> store.setProfilePin(id, newPin)
+                    !lock.isChecked && wasLocked -> store.setProfilePin(id, null)
+                }
                 if (id == store.currentProfileId) setResult(RESULT_OK)
                 dialog.dismiss()
                 render()
