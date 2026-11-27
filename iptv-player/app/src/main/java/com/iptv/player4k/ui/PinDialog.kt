@@ -21,6 +21,14 @@ object PinDialog {
             { store.checkPin(it) }, { store.pinLockRemainingMs() }, onCancel = null, onOk = onOk)
     }
 
+    /** PIN dos pais com mensagem própria e aviso de cancelamento. Sem PIN cadastrado, executa direto. */
+    fun requireText(activity: Activity, message: String, onCancel: (() -> Unit)?, onOk: () -> Unit) {
+        val store = PlaylistStore(activity)
+        if (!store.hasPin) { onOk(); return }
+        ask(activity, activity.getString(R.string.pin_title), message,
+            { store.checkPin(it) }, { store.pinLockRemainingMs() }, onCancel, onOk)
+    }
+
     /** Senha do perfil (quando "Bloquear perfil" está ligado). Sem senha, executa direto. */
     fun requireProfile(activity: Activity, profile: com.iptv.player4k.data.Profile, onCancel: (() -> Unit)? = null, onOk: () -> Unit) {
         val store = PlaylistStore(activity)

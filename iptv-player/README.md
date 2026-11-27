@@ -35,7 +35,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `Eli-Player-4K-v1.11.0.apk` (pasta `release/`). Ele atualiza por cima das versões
+1. Baixe o APK `Eli-Player-4K-v1.11.1.apk` (pasta `release/`). Ele atualiza por cima das versões
    anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
@@ -52,6 +52,14 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.11.1 — classificação etária conferida na hora do play**
+- Corrigido: filme acima da classificação tocava quando o servidor não informa a idade na
+  lista (só nos detalhes). Agora o player confere a classificação antes de carregar o vídeo
+  (busca nos detalhes se precisar); bloqueado → pede o PIN dos pais, sem PIN não toca.
+  Nem o primeiro quadro aparece atrás do pedido de PIN; série liberada vale para os próximos episódios
+- Detalhes mostram um cadeado no "Assistir" quando o título está acima do limite
+- Perfil Principal: classificação e grupos bloqueados valem mesmo sem PIN dos pais
 
 **1.11.0 — velocidade da internet, favoritos no player e limpeza**
 - Ajustes → Internet → **Medir velocidade da internet**: ping, download e upload

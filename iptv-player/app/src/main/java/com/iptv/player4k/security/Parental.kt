@@ -100,3 +100,27 @@ object ParentalSession {
         unlockedUntil = 0L
     }
 }
+
+/**
+ * Regras do controle dos pais do perfil em uso — usadas nas listas e no player (na hora do play).
+ * - KIDS: sempre restrito (até 10 anos, adulto bloqueado), mesmo com o PIN desbloqueado.
+ * - Perfis criados ou qualquer perfil com PIN dos pais: classificação, adulto e grupos do perfil.
+ * - Principal sem PIN: vale o que foi configurado de propósito (classificação abaixo de 18 ou
+ *   grupos bloqueados); o bloqueio automático de adulto continua exigindo o PIN, como antes.
+ * O PIN dos pais (menu Desbloquear) libera tudo por 30 min, menos no KIDS.
+ */
+object ParentalPolicy {
+    fun rules(store: com.iptv.player4k.data.PlaylistStore, playlistId: String): ParentalRules {
+        val profile = store.currentProfile
+        val groups = store.lockedGroups(playlistId)
+        if (profile.kids) return ParentalRules(
+            true, minOf(store.maxAge, com.iptv.player4k.data.Profile.KIDS_MAX_AGE), true, groups,
+        )
+        if (store.hasPin && ParentalSession.isUnlocked) return ParentalRules.OPEN
+        if (store.hasPin || profile.id != com.iptv.player4k.data.Profile.MAIN_ID) {
+            return ParentalRules(true, store.maxAge, store.autoLockAdult, groups)
+        }
+        return if (store.maxAge < 18 || groups.isNotEmpty()) ParentalRules(true, store.maxAge, false, groups)
+        else ParentalRules.OPEN
+    }
+}

@@ -152,6 +152,9 @@ class DetailsActivity : AppCompatActivity() {
         bindMyList()
         bindResume()
         bindTrailer()
+        // bloqueado pelo controle dos pais (idade dos detalhes): cadeado no Assistir; o player pede o PIN
+        val blocked = com.iptv.player4k.security.ParentalPolicy.rules(store, pid).isBlocked(age, m?.category ?: s?.category)
+        b.btnPlay.setIconResource(if (blocked) R.drawable.ic_lock else R.drawable.ic_play)
     }
 
     private fun trailerId(): String? = details?.trailer ?: movie?.trailer ?: series?.trailer

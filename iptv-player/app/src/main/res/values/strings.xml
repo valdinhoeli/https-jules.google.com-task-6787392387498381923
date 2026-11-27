@@ -367,7 +367,7 @@
     <string name="profile_lock_info_nopin">Sempre que alguém voltar para este perfil (ou abrir o app nele), a senha será pedida. Crie também um PIN dos pais em Ajustes: ele permite remover a senha se ela for esquecida.</string>
     <string name="profile_parental">CONTROLE DOS PAIS DESTE PERFIL</string>
     <string name="profile_parental_info">Valem só para este perfil: classificação etária, conteúdo adulto e grupos de canais bloqueados.</string>
-    <string name="profile_parental_main">No perfil Principal estas regras valem quando há um PIN dos pais (Ajustes → Controle dos pais).</string>
+    <string name="profile_parental_main">Classificação e grupos valem sempre. O bloqueio automático de conteúdo adulto no Principal precisa de um PIN dos pais (Ajustes → Controle dos pais), que também permite liberar um título bloqueado.</string>
     <string name="profile_groups_need_list">Abra uma lista primeiro para escolher os grupos</string>
     <string name="par_profile_rules">Regras do perfil em uso: %s. Para os outros perfis, use Gerenciar perfis.</string>
     <string name="close">Fechar</string>
@@ -410,5 +410,10 @@
     <string name="clear_done">Pronto, apagado</string>
     <string name="panel_fav_empty">Nenhum favorito ainda. Na lista de canais, segure OK (ou toque e segure) num canal para favoritar.</string>
     <string name="panel_recent_empty">Nenhum canal assistido ainda neste perfil</string>
+    <string name="gate_age">classificação %1$s (o limite deste perfil é %2$s)</string>
+    <string name="gate_group">grupo bloqueado: %s</string>
+    <string name="gate_adult">conteúdo adulto</string>
+    <string name="gate_pin">Bloqueado pelo controle dos pais: %s. Digite o PIN dos pais para assistir.</string>
+    <string name="gate_blocked">Bloqueado pelo controle dos pais: %s.</string>
     <string name="home_profile">Trocar de perfil</string>
 </resources>

@@ -114,7 +114,74 @@ class PlayerActivity : AppCompatActivity() {
         player?.let { it.prepare(); it.playWhenReady = !asking }
     }
     /** Pergunta "continuar ou do início" aberta: o vídeo espera a escolha. */
-    private val asking get() = resumeDialog?.isShowing == true
+    private val asking get() = resumeDialog?.isShowing == true || gating
+
+    // ---- controle dos pais na hora do play (filmes/episódios) ----
+    /** conferindo a classificação (o vídeo espera) */
+    private var gating = false
+    /** títulos liberados com o PIN nesta sessão do player */
+    private val approved = HashSet<String>()
+    /** série liberada vale para os episódios seguintes (não pede o PIN a cada episódio) */
+    private fun gateKey(ch: Channel) = "${ch.kind}:${ch.refId ?: ch.url}"
+    private var gateJob: kotlinx.coroutines.Job? = null
+
+    private fun parentalRules() =
+        com.iptv.player4k.security.ParentalPolicy.rules(store, PlaybackQueue.playlist?.id.orEmpty())
+
+    /**
+     * Confere a classificação antes de tocar. Muitos servidores não mandam a idade na lista de
+     * filmes, só nos detalhes: aqui ela é buscada (até 6 s) para o filme não escapar do bloqueio.
+     * Bloqueado: pede o PIN dos pais; sem PIN (ou cancelado), não toca.
+     */
+    private fun ageGate(ch: Channel, onAllowed: () -> Unit) {
+        gateJob?.cancel()
+        val rules = parentalRules()
+        if (!rules.enabled || gateKey(ch) in approved) { gating = false; onAllowed(); return }
+        gating = true
+        gateJob = lifecycleScope.launch {
+            val (age, group) = resolveAge(ch)
+            if (channels.getOrNull(index)?.url != ch.url) return@launch
+            fun allow() {
+                gating = false
+                onAllowed()
+            }
+            if (!rules.isBlocked(age, group)) { allow(); return@launch }
+            val shown = rules.effectiveAge(age, group)
+            val what = when {
+                group != null && group in rules.lockedGroups -> getString(R.string.gate_group, group)
+                shown != null && shown > rules.maxAge -> getString(R.string.gate_age, com.iptv.player4k.security.AgeRating.name(shown),
+                    if (rules.maxAge >= 18) "18" else com.iptv.player4k.security.AgeRating.name(rules.maxAge))
+                else -> getString(R.string.gate_adult)
+            }
+            if (store.hasPin) {
+                com.iptv.player4k.ui.PinDialog.requireText(this@PlayerActivity, getString(R.string.gate_pin, what), onCancel = { finish() }) {
+                    approved += gateKey(ch)
+                    allow()
+                }
+            } else {
+                Toast.makeText(this@PlayerActivity, getString(R.string.gate_blocked, what), Toast.LENGTH_LONG).show()
+                finish()
+            }
+        }
+    }
+
+    /** Idade e categoria do título: da lista; sem idade, dos detalhes do servidor. */
+    private suspend fun resolveAge(ch: Channel): Pair<Int?, String?> {
+        val lib = Session.library
+        val pl = PlaybackQueue.playlist
+        val repo = com.iptv.player4k.data.LibraryRepository(this)
+        return if (ch.kind == ContentKind.MOVIE) {
+            val m = lib.movie(ch.refId)
+            val age = ch.age ?: m?.age ?: if (m != null && pl != null)
+                kotlinx.coroutines.withTimeoutOrNull(6_000) { runCatching { repo.movieDetails(pl, m) }.getOrNull()?.age } else null
+            age to (m?.category ?: ch.group)
+        } else {
+            val sr = lib.series(ch.refId)
+            val age = ch.age ?: sr?.age ?: if (sr != null && pl != null)
+                kotlinx.coroutines.withTimeoutOrNull(6_000) { runCatching { repo.seriesDetails(pl, sr) }.getOrNull()?.age } else null
+            age to (sr?.category ?: ch.group)
+        }
+    }
 
     private val tvTitle by lazy { b.playerView.findViewById<TextView>(R.id.tvTitle) }
     private val tvInfo by lazy { b.playerView.findViewById<TextView>(R.id.tvInfo) }
@@ -311,10 +378,20 @@ class PlayerActivity : AppCompatActivity() {
         bindEpg(ch)
         updateLiveUi()
         showOsd(ch)
-        startMedia(ch)
+        // filme/episódio: o vídeo só é carregado depois de conferir a classificação
+        // (nem o primeiro quadro aparece atrás do pedido de PIN)
         if (ch.kind != ContentKind.LIVE) {
-            resumeSaved(ch)
+            p.stop()
+            p.clearMediaItems()
+            ageGate(ch) {
+                startMedia(ch)
+                resumeSaved(ch)
+            }
             loadVodInfo(ch)
+        } else {
+            gateJob?.cancel()
+            gating = false
+            startMedia(ch)
         }
     }
 
