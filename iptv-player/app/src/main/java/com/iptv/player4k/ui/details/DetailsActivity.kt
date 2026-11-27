@@ -181,7 +181,8 @@ class DetailsActivity : AppCompatActivity() {
         val m = movie
         if (m != null) {
             val p = prog[m.url]?.takeIf { it.inProgress }
-            b.btnPlay.text = if (p != null) getString(R.string.resume_from, Fmt.clock(p.position)) else getString(R.string.watch)
+            // o player pergunta se continua de onde parou ou começa do início
+            b.btnPlay.text = getString(R.string.watch)
             b.pbResume.isVisible = p != null
             p?.let { b.pbResume.progress = (it.fraction * 1000).toInt() }
             return

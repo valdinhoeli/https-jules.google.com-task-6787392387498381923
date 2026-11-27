@@ -31,7 +31,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `Eli-Player-4K-v1.8.1.apk` (pasta `release/`). Ele atualiza por cima das versões
+1. Baixe o APK `Eli-Player-4K-v1.8.2.apk` (pasta `release/`). Ele atualiza por cima das versões
    anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
@@ -48,6 +48,12 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.8.2 — continuar ou começar do início**
+- Filme ou episódio já começado: o player pergunta "Continuar de 1:05" ou "Começar do início"
+  (vale para Assistir, Detalhes, Continuar assistindo e próximo episódio). O vídeo fica parado
+  até a escolha; no controle remoto o foco começa em Continuar e Voltar também continua
+- Filme/episódio assistido até o fim (95 %) recomeça direto, sem perguntar
 
 **1.8.1 — seções totalmente separadas**
 - Ao voltar de um filme ou episódio, o app continua em FILMES/SÉRIES: a barra "Ao vivo | Guia"

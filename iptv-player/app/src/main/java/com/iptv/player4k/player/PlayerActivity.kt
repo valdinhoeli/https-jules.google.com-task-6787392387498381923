@@ -111,8 +111,10 @@ class PlayerActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val hideOsd = Runnable { b.osd.isVisible = false }
     private val retryRunnable = Runnable {
-        player?.let { it.prepare(); it.playWhenReady = true }
+        player?.let { it.prepare(); it.playWhenReady = !asking }
     }
+    /** Pergunta "continuar ou do início" aberta: o vídeo espera a escolha. */
+    private val asking get() = resumeDialog?.isShowing == true
 
     private val tvTitle by lazy { b.playerView.findViewById<TextView>(R.id.tvTitle) }
     private val tvInfo by lazy { b.playerView.findViewById<TextView>(R.id.tvInfo) }
@@ -201,6 +203,8 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        resumeDialog?.dismiss()
+        resumeDialog = null
         if (pipReceiverOn) runCatching { unregisterReceiver(pipReceiver) }
         pipReceiverOn = false
         super.onDestroy()
@@ -314,13 +318,45 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    /** Retoma filmes/episódios de onde parou. */
+    private var resumeDialog: androidx.appcompat.app.AlertDialog? = null
+
+    /**
+     * Filme/episódio já começado: pergunta se continua de onde parou ou começa do início.
+     * O vídeo fica pausado até a escolha; voltar (◀ do controle) fecha a pergunta e continua.
+     */
     private fun resumeSaved(ch: Channel) {
+        resumeDialog?.dismiss()
+        resumeDialog = null
         val pid = PlaybackQueue.playlist?.id ?: return
         val saved = store.progress(pid, ch.url) ?: return
         if (!saved.inProgress) return
-        player?.seekTo(saved.position)
-        Toast.makeText(this, getString(R.string.resuming_at, Fmt.clock(saved.position)), Toast.LENGTH_SHORT).show()
+        val p = player ?: return
+        p.playWhenReady = false
+        var chosen = false
+        fun start(fromStart: Boolean) {
+            if (chosen) return
+            chosen = true
+            resumeDialog = null
+            if (channels.getOrNull(index)?.url != ch.url) return
+            player?.let {
+                it.seekTo(if (fromStart) 0L else saved.position)
+                it.playWhenReady = true
+            }
+        }
+        val pos = Fmt.clock(saved.position)
+        val msg = if (saved.duration > 0) getString(R.string.resume_msg_of, pos, Fmt.clock(saved.duration))
+        else getString(R.string.resume_msg, pos)
+        resumeDialog = MaterialAlertDialogBuilder(this)
+            .setTitle(ch.name)
+            .setMessage(msg)
+            .setPositiveButton(getString(R.string.resume_continue, pos)) { _, _ -> start(false) }
+            .setNegativeButton(R.string.resume_restart) { _, _ -> start(true) }
+            .setOnCancelListener { start(false) }
+            .show()
+            .also { d ->
+                // controle remoto: o foco começa em "Continuar"
+                d.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.requestFocus()
+            }
     }
 
     private fun saveProgress() {
@@ -454,7 +490,7 @@ class PlayerActivity : AppCompatActivity() {
         val p = player ?: return
         p.setMediaSource(StreamFactory.create(this, ch, mimeCandidates.getOrNull(mimeAttempt)))
         p.prepare()
-        p.playWhenReady = true
+        p.playWhenReady = !asking
     }
 
     private val listener = object : Player.Listener {

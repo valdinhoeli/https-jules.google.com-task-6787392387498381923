@@ -138,7 +138,6 @@
     <string name="mylist_added">Na minha lista</string>
     <string name="added_mylist">Adicionado à Minha lista</string>
     <string name="removed_mylist">Removido da Minha lista</string>
-    <string name="resume_from">Continuar de %s</string>
     <string name="resume_episode">Continuar T%1$d:E%2$d</string>
     <string name="kind_movie">FILME</string>
     <string name="kind_series">SÉRIE</string>
@@ -154,7 +153,10 @@
     <string name="search_results">Resultados da busca</string>
     <string name="no_results">Nada encontrado</string>
     <string name="no_episodes">Episódios indisponíveis</string>
-    <string name="resuming_at">Continuando de %s</string>
+    <string name="resume_msg">Você parou em %s.\n\nDeseja continuar de onde parou ou começar do início?</string>
+    <string name="resume_msg_of">Você parou em %1$s de %2$s.\n\nDeseja continuar de onde parou ou começar do início?</string>
+    <string name="resume_continue">Continuar de %s</string>
+    <string name="resume_restart">Começar do início</string>
     <string name="next_episode_in">Próximo episódio…</string>
     <string name="ep_label">T%1$d:E%2$d · %3$s</string>
 
