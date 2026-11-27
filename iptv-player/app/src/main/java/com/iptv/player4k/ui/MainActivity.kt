@@ -192,11 +192,18 @@ class MainActivity : AppCompatActivity() {
         for (i in 0 until b.tabs.tabCount) {
             val tab = b.tabs.getTabAt(i) ?: continue
             tab.view.isFocusable = true
-            tab.view.setOnFocusChangeListener { _, has -> if (has && !tab.isSelected) tab.select() }
+            tab.view.setOnFocusChangeListener { _, has ->
+                if (has && !tab.isSelected && vm.section == SECTION_LIVE) tab.select()
+            }
         }
         b.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             // ao abrir na tela inicial, a aba é só marcada: a tela da seção é criada quando o usuário entrar nela
-            override fun onTabSelected(tab: TabLayout.Tab) { if (!settingUpTabs) showTab(tab.position) }
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                if (settingUpTabs) return
+                // Ao vivo/Guia (0 e 3) nunca abrem por cima de Filmes ou Séries
+                if (isLiveTab(tab.position) && vm.section != SECTION_LIVE) return
+                showTab(tab.position)
+            }
             override fun onTabUnselected(tab: TabLayout.Tab) = Unit
             override fun onTabReselected(tab: TabLayout.Tab) = Unit
         })
@@ -204,6 +211,8 @@ class MainActivity : AppCompatActivity() {
         b.tabs.getTabAt(initial.coerceIn(0, 3))?.select()
         settingUpTabs = false
     }
+
+    private fun isLiveTab(pos: Int) = pos == 0 || pos == 3
 
     private fun showTab(pos: Int) {
         vm.currentTab = pos
@@ -570,7 +579,8 @@ class MainActivity : AppCompatActivity() {
     private fun render(s: UiState) {
         supportActionBar?.subtitle = s.playlist?.name
         b.progress.isVisible = s.loading
-        b.tabs.isVisible = s.playlist != null
+        // a barra "Ao vivo | Guia" é só da seção TV AO VIVO: Filmes, Séries e as outras abas ficam separadas
+        b.tabs.isVisible = s.playlist != null && vm.section == SECTION_LIVE
 
         val e = b.empty
         when {
