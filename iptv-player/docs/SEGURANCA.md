@@ -1,4 +1,4 @@
-# Relatório de segurança — IPTV Player 4K v1.5.0
+# Relatório de segurança — Eli Player 4K (antes IPTV Player 4K) v1.5.0
 
 Teste feito em 26/11/2026 sobre o APK de produção (release, ofuscado com R8):
 
@@ -63,3 +63,15 @@ Teste feito em 26/11/2026 sobre o APK de produção (release, ofuscado com R8):
    atual uma única vez.
 2. Ativar o PIN dos pais e "Proteger listas com PIN" em aparelhos compartilhados.
 3. Ligar a "Tela segura" se não quiser que a lista apareça em prints ou espelhamento de tela.
+
+## Atualização 1.8.0 — permissões
+
+O APK declara **apenas** `android.permission.INTERNET`, uma permissão "normal" que o Android
+concede na instalação, sem nenhuma pergunta ao usuário. Sem ela não é possível tocar a lista.
+
+| Removida | Origem | Efeito |
+|---|---|---|
+| `ACCESS_NETWORK_STATE` | Media3 (estimativa de banda) | Media3 trata a falta (SecurityException) e usa a estimativa padrão |
+| `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | androidx.core | Receptor do PiP registrado direto; no Android < 13 aceita só intents com um segredo aleatório do processo |
+
+Conferência: `aapt2 dump permissions app-release.apk` → somente `INTERNET`.

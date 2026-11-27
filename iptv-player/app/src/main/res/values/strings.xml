@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">IPTV Player 4K</string>
+    <string name="app_name">Eli Player 4K</string>
 
     <string name="group_all">Todos</string>
     <string name="group_favorites">★ Favoritos</string>
@@ -78,7 +78,20 @@
     <string name="set_start_last_sum">Ao abrir o app, o último canal ao vivo começa a tocar sozinho. Voltar leva à tela inicial</string>
 
     <string name="device_title">Compatibilidade do aparelho</string>
-    <string name="about_text">IPTV Player 4K %s\n\nPlayer de listas IPTV (M3U, M3U8, Xtream Codes) com suporte a HLS, MPEG-TS, DASH e RTSP em SD, HD, Full HD e 4K, incluindo HDR quando o aparelho suporta.\n\nO app não fornece canais nem conteúdo: use apenas listas às quais você tem direito.</string>
+    <string name="about_text">Eli Player 4K %s\n\nO Eli Player 4K é somente um PLAYER DE VÍDEO (reprodutor). Ele toca listas M3U, M3U8 e Xtream Codes que você mesmo adiciona, com suporte a HLS, MPEG-TS, DASH e RTSP em SD, HD, Full HD e 4K, incluindo HDR quando o aparelho suporta.\n\nNÃO VENDEMOS LISTAS DE CANAIS. O aplicativo não vem com canais, filmes ou séries, e não vendemos, fornecemos nem indicamos listas ou assinaturas. Use apenas listas às quais você tem direito.\n\nSEM PERMISSÕES. Por segurança, o aplicativo não pede nenhuma permissão: não acessa câmera, microfone, contatos, localização, fotos, arquivos, telefone ou SMS. Ele usa somente a internet para tocar a lista que você adicionou.\n\nContato: (81) 99763-1866 via Telegram.</string>
+    <string name="sec_about">SOBRE O APLICATIVO</string>
+    <string name="about_player">Somente player de vídeo</string>
+    <string name="about_player_sum">O Eli Player 4K apenas reproduz as listas que você adiciona. Não vem com canais, filmes ou séries.</string>
+    <string name="about_no_sale">Não vendemos listas de canais</string>
+    <string name="about_no_sale_sum">Não vendemos, não fornecemos e não indicamos listas, canais ou assinaturas. Use apenas listas às quais você tem direito.</string>
+    <string name="about_no_perm">Nenhuma permissão</string>
+    <string name="about_no_perm_sum">Por segurança o aplicativo não pede nenhuma permissão: sem acesso a câmera, microfone, contatos, localização, fotos, arquivos, telefone ou SMS. Usa só a internet para tocar a sua lista.</string>
+    <string name="about_contact">Contato via Telegram</string>
+    <string name="about_contact_phone">(81) 99763-1866</string>
+    <string name="about_contact_dialog">Fale com a gente pelo Telegram:\n\n(81) 99763-1866\n+55 81 99763-1866\n\nAbra o Telegram no celular e procure por este número.</string>
+    <string name="version_fmt">Versão %s</string>
+    <string name="about_no_telegram">Telegram não encontrado neste aparelho. Contato: (81) 99763-1866</string>
+    <string name="about_open_telegram">Abrir Telegram</string>
 
     <string name="q_title">Qualidade do vídeo</string>
     <string name="audio_title">Faixa de áudio</string>
@@ -249,7 +262,7 @@
     <string name="panel_groups">Grupos</string>
     <string name="panel_all">Todos os canais</string>
     <string name="panel_hint_groups">◀ Grupos</string>
-    <string name="exit_title">Sair do IPTV Player?</string>
+    <string name="exit_title">Sair do Eli Player?</string>
     <string name="exit_yes">Sair</string>
     <string name="home_live">TV AO VIVO</string>
     <string name="home_movies">FILMES</string>

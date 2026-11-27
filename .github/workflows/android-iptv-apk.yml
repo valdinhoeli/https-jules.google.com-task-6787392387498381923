@@ -1,4 +1,4 @@
-name: IPTV Player APK
+name: Eli Player 4K APK
 
 on:
   push:
@@ -28,5 +28,5 @@ jobs:
         run: ./gradlew --no-daemon testDebugUnitTest assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: IPTV-Player-4K-apk
+          name: Eli-Player-4K-apk
           path: iptv-player/app/build/outputs/apk/release/*.apk

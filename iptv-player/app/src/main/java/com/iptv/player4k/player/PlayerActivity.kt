@@ -917,7 +917,7 @@ class PlayerActivity : AppCompatActivity() {
         fun action(icon: Int, title: Int, cmd: Int) = android.app.RemoteAction(
             android.graphics.drawable.Icon.createWithResource(this, icon), getString(title), getString(title),
             android.app.PendingIntent.getBroadcast(
-                this, cmd, Intent(PIP_ACTION).setPackage(packageName).putExtra("cmd", cmd),
+                this, cmd, Intent(PIP_ACTION).setPackage(packageName).putExtra("cmd", cmd).putExtra("token", PIP_TOKEN),
                 android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
             ),
         )
@@ -930,7 +930,9 @@ class PlayerActivity : AppCompatActivity() {
 
     private val pipReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
-            when (intent?.getIntExtra("cmd", 0)) {
+            // no Android < 13 o receptor dinâmico é exportado: só aceita os botões do próprio PiP
+            if (intent?.getStringExtra("token") != PIP_TOKEN) return
+            when (intent.getIntExtra("cmd", 0)) {
                 1 -> switchChannel(-1)
                 2 -> player?.let { it.playWhenReady = !it.playWhenReady }
                 3 -> switchChannel(+1)
@@ -964,10 +966,10 @@ class PlayerActivity : AppCompatActivity() {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         b.playerView.useController = !isInPictureInPictureMode
         if (isInPictureInPictureMode && !pipReceiverOn) {
-            androidx.core.content.ContextCompat.registerReceiver(
-                this, pipReceiver, android.content.IntentFilter(PIP_ACTION),
-                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
+            // sem ContextCompat.registerReceiver: ele exige uma permissão extra no manifesto
+            val filter = android.content.IntentFilter(PIP_ACTION)
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(pipReceiver, filter, RECEIVER_NOT_EXPORTED)
+            else registerReceiver(pipReceiver, filter)
             pipReceiverOn = true
         } else if (!isInPictureInPictureMode && pipReceiverOn) {
             runCatching { unregisterReceiver(pipReceiver) }
@@ -1009,6 +1011,8 @@ class PlayerActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_INDEX = "index"
         private const val PIP_ACTION = "com.iptv.player4k.PIP_CONTROL"
+        /** Segredo aleatório por processo: outro app não consegue controlar o PiP. */
+        private val PIP_TOKEN: String = java.util.UUID.randomUUID().toString()
         private const val MAX_RETRIES = 4
     }
 }

@@ -99,9 +99,9 @@ class MainActivity : AppCompatActivity() {
                     .show()
             }
         })
-        // marca: logo + "IPTV Player" com "4K" em destaque
+        // marca: logo + "Eli Player" com "4K" em destaque
         b.toolbar.setLogo(R.drawable.ic_brand)
-        supportActionBar?.title = android.text.SpannableStringBuilder("IPTV Player  4K").apply {
+        supportActionBar?.title = android.text.SpannableStringBuilder("Eli Player  4K").apply {
             setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, length, 0)
             setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
         }
@@ -238,7 +238,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupHome() {
         val h = b.home
-        h.tvHomeBrand.text = android.text.SpannableStringBuilder("IPTV Player  4K").apply {
+        h.tvHomeBrand.text = android.text.SpannableStringBuilder("Eli Player  4K").apply {
             setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.accent)), length - 2, length, 0)
         }
         listOf(h.cardLive to SECTION_LIVE, h.cardMovies to SECTION_MOVIES, h.cardSeries to SECTION_SERIES, h.cardKids to SECTION_KIDS,

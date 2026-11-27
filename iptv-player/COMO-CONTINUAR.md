@@ -5,15 +5,15 @@ computador, sem depender do GitHub. Você recebeu 3 arquivos:
 
 | Arquivo | O que é |
 |---|---|
-| `IPTV-Player-4K-projeto-v1.7.2.zip` | O projeto completo (esta pasta), pronto para abrir e compilar |
-| `IPTV-Player-4K-historico.bundle` | Todo o histórico de versões (git), para guardar ou levar para outro serviço |
-| `IPTV-Player-4K-chave-assinatura.zip` | A chave que assina o APK (**guarde com cuidado**, veja abaixo) |
+| `Eli-Player-4K-projeto-v1.8.0.zip` | O projeto completo (esta pasta), pronto para abrir e compilar |
+| `Eli-Player-4K-historico.bundle` | Todo o histórico de versões (git), para guardar ou levar para outro serviço |
+| `Eli-Player-4K-chave-assinatura.zip` | A chave que assina o APK (**guarde com cuidado**, veja abaixo) |
 
 ## 1. A chave de assinatura (o mais importante)
 
 O Android só instala uma versão nova **por cima** da antiga se as duas tiverem a mesma assinatura.
 Todos os APKs que você já instalou (1.0 a 1.7.2) foram assinados com a chave que está em
-`IPTV-Player-4K-chave-assinatura.zip`:
+`Eli-Player-4K-chave-assinatura.zip`:
 
 - certificado SHA-256: `D4:1F:1A:4E:8C:7B:47:B1:E1:B4:6E:8B:25:83:F8:B0:DE:47:DE:A6:70:47:87:81:82:96:27:1B:EB:5C:04:60`
 - alias `androiddebugkey`, senha `android` (é a senha padrão — troque, veja abaixo)
@@ -59,7 +59,7 @@ Para conferir a assinatura do APK novo (tem que mostrar o mesmo SHA-256 acima):
 
 O arquivo `.bundle` tem os 29 registros de alteração desde a primeira versão. Para usar:
 ```
-git clone IPTV-Player-4K-historico.bundle iptv-player-4k
+git clone Eli-Player-4K-historico.bundle iptv-player-4k
 cd iptv-player-4k
 git checkout claude/android-iptv-player-apk-6mcleu
 ```

@@ -104,23 +104,34 @@ object M3uParser {
     }
 
     /**
-     * Ao vivo, filme ou série. Usa o padrão de URL do Xtream (/movie/, /series/, /live/),
-     * o nome (S01E02) e palavras do grupo ("Filmes", "Séries"…).
+     * Ao vivo, filme ou série — sem misturar canais com filmes/séries.
+     *
+     * 1. O caminho do Xtream manda (/series/, /movie/, /live/).
+     * 2. Arquivo de vídeo (.mp4, .mkv…) nunca é canal: é filme, ou série se tiver episódio.
+     * 3. Transmissão (.ts, .m3u8 ou sem extensão) é canal, a não ser que haja prova forte de
+     *    que é VOD: S01E02/1x02 no nome, "Episódio 3" num grupo de séries ou um ano "(2021)"
+     *    num grupo de filmes. Assim "HBO" ou "Telecine" num grupo "Filmes" continuam canais,
+     *    e "Filmes 24h" / "Séries 24 horas" também.
      */
     fun classify(url: String, group: String, name: String): ContentKind {
         val u = url.lowercase()
         if ("/series/" in u) return ContentKind.SERIES
         if ("/movie/" in u || "/movies/" in u) return ContentKind.MOVIE
         if ("/live/" in u) return ContentKind.LIVE
-        if (LibraryBuilder.hasStrongEpisodeMarker(name)) return ContentKind.SERIES
         val g = " " + com.iptv.player4k.util.Text.normalize(group) + " "
-        if (liveWords.any { it in g }) return ContentKind.LIVE
-        if (seriesWords.any { it in g }) return ContentKind.SERIES
-        // "Episódio 3", "Capítulo 12" num grupo que não é de canais ao vivo
-        if (LibraryBuilder.hasEpisodeWord(name)) return ContentKind.SERIES
-        if (movieWords.any { it in g }) return ContentKind.MOVIE
-        val path = u.substringBefore('?').substringBefore('|')
-        if (vodExt.any { path.endsWith(it) }) return ContentKind.MOVIE
+        val n = " " + com.iptv.player4k.util.Text.normalize(name) + " "
+        val seriesGroup = seriesWords.any { it in g }
+        val path = u.substringBefore('?').substringBefore('|').substringBefore('#')
+        if (vodExt.any { path.endsWith(it) }) {
+            return if (LibraryBuilder.hasStrongEpisodeMarker(name) || LibraryBuilder.hasEpisodeWord(name) ||
+                (seriesGroup && movieWords.none { it in g })
+            ) ContentKind.SERIES else ContentKind.MOVIE
+        }
+        // a partir daqui é transmissão (.ts / .m3u8 / sem extensão)
+        if (liveWords.any { it in g || it in n }) return ContentKind.LIVE
+        if (LibraryBuilder.hasStrongEpisodeMarker(name)) return ContentKind.SERIES
+        if (seriesGroup && LibraryBuilder.hasEpisodeWord(name)) return ContentKind.SERIES
+        if (movieWords.any { it in g } && LibraryBuilder.splitYear(name).second != null) return ContentKind.MOVIE
         return ContentKind.LIVE
     }
 

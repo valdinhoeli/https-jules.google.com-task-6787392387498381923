@@ -1,5 +1,7 @@
 package com.iptv.player4k.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
@@ -114,11 +116,28 @@ class SettingsActivity : AppCompatActivity() {
             MaterialAlertDialogBuilder(this).setTitle(R.string.device_title)
                 .setMessage(DeviceInfo.describe(this)).setPositiveButton(R.string.ok, null).show()
         }
-        row(R.drawable.ic_info, getString(R.string.action_about), "IPTV Player 4K ${BuildConfig.VERSION_NAME}") {
+        header(R.string.sec_about)
+        row(R.drawable.ic_info, getString(R.string.app_name), getString(R.string.version_fmt, BuildConfig.VERSION_NAME)) {
             MaterialAlertDialogBuilder(this).setTitle(R.string.app_name)
                 .setMessage(getString(R.string.about_text, BuildConfig.VERSION_NAME))
                 .setPositiveButton(R.string.ok, null).show()
         }
+        row(R.drawable.ic_play, getString(R.string.about_player), getString(R.string.about_player_sum), clickable = false) {}
+        row(R.drawable.ic_movie, getString(R.string.about_no_sale), getString(R.string.about_no_sale_sum), clickable = false) {}
+        row(R.drawable.ic_shield, getString(R.string.about_no_perm), getString(R.string.about_no_perm_sum), clickable = false) {}
+        row(R.drawable.ic_send, getString(R.string.about_contact), getString(R.string.about_contact_phone)) { contact() }
+    }
+
+    /** Telegram pelo número; sem Telegram/navegador (comum em TV) o número continua na tela. */
+    private fun contact() {
+        MaterialAlertDialogBuilder(this).setTitle(R.string.about_contact)
+            .setMessage(R.string.about_contact_dialog)
+            .setNegativeButton(R.string.ok, null)
+            .setPositiveButton(R.string.about_open_telegram) { _, _ ->
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TELEGRAM_URL))) }
+                    .onFailure { Toast.makeText(this, R.string.about_no_telegram, Toast.LENGTH_LONG).show() }
+            }
+            .show()
     }
 
     private fun withPin(action: () -> Unit) {
@@ -239,5 +258,9 @@ class SettingsActivity : AppCompatActivity() {
         }
         tvRow(r.root, getString(title))
         b.container.addView(r.root)
+    }
+
+    companion object {
+        private const val TELEGRAM_URL = "https://t.me/+5581997631866"
     }
 }

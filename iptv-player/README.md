@@ -1,15 +1,19 @@
-# IPTV Player 4K (Android)
+# Eli Player 4K (Android)
 
 Player de listas IPTV para **celular, tablet, Android TV e TV Box**, com reprodução
 em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho suporta).
 
-> O app não contém canais. Use apenas listas às quais você tem direito.
+> **O Eli Player 4K é somente um player de vídeo.** Não vem com canais, filmes ou séries e
+> **não vendemos listas de canais**. Use apenas listas às quais você tem direito.
+>
+> **Nenhuma permissão:** o app não pede acesso a câmera, microfone, contatos, localização,
+> fotos, arquivos, telefone ou SMS. Contato: **(81) 99763-1866 via Telegram**.
 
 | Tela inicial (Android TV) | ESPORTES | NOVELAS |
 |---|---|---|
 | ![](docs/home.png) | ![](docs/esportes-tv.png) | ![](docs/novelas-tv.png) |
-| **KIDS** | **Trocar de grupo sem sair do canal** | |
-| ![](docs/kids-tv.png) | ![](docs/player-grupos.png) | |
+| **KIDS** | **Trocar de grupo sem sair do canal** | **Ajustes → Sobre o aplicativo** |
+| ![](docs/kids-tv.png) | ![](docs/player-grupos.png) | ![](docs/sobre-tv.png) |
 
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
@@ -27,7 +31,8 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `IPTV-Player-4K-v1.7.2.apk` (pasta `release/`).
+1. Baixe o APK `Eli-Player-4K-v1.8.0.apk` (pasta `release/`). Ele atualiza por cima das versões
+   anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
    um app como *Downloader* / *Send Files to TV*.
@@ -43,6 +48,17 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.8.0 — Eli Player 4K**
+- Novo nome: **Eli Player 4K** (ícone na TV, tela inicial, barra e banner da Android TV)
+- Filmes e Séries não se misturam mais com os canais: canais de filmes/séries (HBO, Telecine,
+  Warner, "Filmes 24h"…) ficam só em TV AO VIVO, mesmo quando o grupo da lista se chama "Filmes"
+  ou "Séries"; arquivos de vídeo (.mp4, .mkv…) nunca aparecem como canal
+- Ajustes → **Sobre o aplicativo**: somente player de vídeo, não vendemos listas de canais,
+  nenhuma permissão, contato (81) 99763-1866 via Telegram
+- Sem permissões: o APK só declara internet (concedida na instalação, nada é pedido ao usuário);
+  o estado da rede e a permissão interna do androidx foram removidos
+- Controles do PiP aceitam só os botões do próprio app
 
 **1.7.2 — performance verificada**
 - CPU com o app parado: de 22 % para 0,3 % (esportes não reclassificam o guia inteiro a cada minuto)
