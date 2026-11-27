@@ -16,6 +16,8 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 | ![](docs/kids-tv.png) | ![](docs/player-grupos.png) | ![](docs/sobre-tv.png) |
 | **Perfis: quem está assistindo?** | **Controle dos pais e senha do perfil** | |
 | ![](docs/perfis-tv.png) | ![](docs/perfil-controle-pais-tv.png) | |
+| **Medir velocidade** | **Player: Favoritos e Recentes nos grupos** | |
+| ![](docs/velocidade-celular.png) | ![](docs/player-favoritos.png) | |
 
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
@@ -33,7 +35,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `Eli-Player-4K-v1.10.0.apk` (pasta `release/`). Ele atualiza por cima das versões
+1. Baixe o APK `Eli-Player-4K-v1.11.0.apk` (pasta `release/`). Ele atualiza por cima das versões
    anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
@@ -50,6 +52,15 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.11.0 — velocidade da internet, favoritos no player e limpeza**
+- Ajustes → Internet → **Medir velocidade da internet**: ping, download e upload
+  (speed.cloudflare.com) e **velocidade até o servidor da lista** (baixa um canal por 10 s),
+  com o resultado em SD / HD / Full HD / 4K
+- Player: na coluna de grupos, **★ Favoritos** e **Recentes** sempre logo abaixo de "Todos os canais";
+  segurar OK (ou tocar e segurar) num canal adiciona/remove dos favoritos (★ ao lado do nome)
+- Ajustes → Favoritos e histórico: **Limpar favoritos**, **Limpar recentes** e **Limpar
+  Continuar assistindo** (só do perfil em uso, com confirmação)
 
 **1.10.0 — controle dos pais e senha por perfil**
 - Gerenciar perfis → editar: "Controle dos pais deste perfil" com classificação etária,

@@ -133,6 +133,27 @@ class PlaylistStore(context: Context) {
     private fun scoped(key: String): String =
         prefs.getString(K_PROFILE, Profile.MAIN_ID).orEmpty().let { if (it.isEmpty()) key else "$key~$it" }
 
+    // ---- Limpar dados do perfil em uso (todas as listas) ----
+    /** Chaves "<base><playlist>" do perfil atual (o principal não tem "~"). */
+    private fun profileKeys(base: String): List<String> {
+        val cur = prefs.getString(K_PROFILE, Profile.MAIN_ID).orEmpty()
+        return prefs.all.keys.filter { k ->
+            k.startsWith(base) && (if (cur.isEmpty()) '~' !in k else k.endsWith("~$cur"))
+        }
+    }
+
+    private fun clearKeys(base: String): Int {
+        val keys = profileKeys(base)
+        val e = prefs.edit()
+        keys.forEach { e.remove(it) }
+        e.apply()
+        return keys.size
+    }
+
+    fun clearFavorites() = clearKeys("fav_")
+    fun clearRecents() = clearKeys("rec_")
+    fun clearProgress() = clearKeys("prog_")
+
     // ---- Favoritos ----
     fun favorites(playlistId: String): Set<String> = readList(scoped("fav_$playlistId")).toSet()
 

@@ -69,6 +69,7 @@ class ChannelPanel(
     /** [withGroups]: abre já na coluna de grupos (botão voltar no canal ao vivo). */
     fun show(list: List<Channel>, current: Int, withGroups: Boolean = false) {
         b.tvStatus.visibility = View.GONE
+        favs = Session.playlist?.id?.let { store.favorites(it) } ?: emptySet()
         channels = list
         playing = current
         playingUrl = list.getOrNull(current)?.url
@@ -91,18 +92,37 @@ class ChannelPanel(
 
     // ---------------- grupos ----------------
 
+    private val store by lazy { com.iptv.player4k.data.PlaylistStore(ctx) }
+    /** favoritos do perfil/lista atuais (★ ao lado do nome) */
+    private var favs: Set<String> = emptySet()
+
     private fun buildGroups(): List<Group> {
         val live = Session.live
         val out = ArrayList<Group>()
         out += Group(ctx.getString(R.string.panel_all), live)
         val pid = Session.playlist?.id
+        // Favoritos e Recentes sempre aparecem logo abaixo de "Todos os canais"
+        favs = if (pid != null) store.favorites(pid) else emptySet()
+        out += Group(ctx.getString(R.string.group_favorites), live.filter { it.url in favs })
         if (pid != null) {
-            val favs = com.iptv.player4k.data.PlaylistStore(ctx).favorites(pid)
-            val favList = live.filter { it.url in favs }
-            if (favList.isNotEmpty()) out += Group(ctx.getString(R.string.group_favorites), favList)
+            val byUrl = live.associateBy { it.url }
+            out += Group(ctx.getString(R.string.group_recents), store.recents(pid).mapNotNull { byUrl[it] })
         }
         live.groupBy { it.group }.forEach { (g, l) -> out += Group(g, l) }
         return out
+    }
+
+    /** Segurar OK (ou toque longo) num canal: adiciona/remove dos favoritos. */
+    private fun toggleFavorite(pos: Int) {
+        val ch = channels.getOrNull(pos) ?: return
+        val pid = Session.playlist?.id ?: return
+        val added = store.toggleFavorite(pid, ch.url)
+        favs = store.favorites(pid)
+        channelAdapter.notifyItemChanged(pos)
+        android.widget.Toast.makeText(
+            ctx, "${ctx.getString(if (added) R.string.fav_added else R.string.fav_removed)}: ${ch.name}", android.widget.Toast.LENGTH_SHORT,
+        ).show()
+        poke()
     }
 
 
@@ -124,7 +144,13 @@ class ChannelPanel(
     /** Abre os canais do grupo escolhido (foco no canal que está tocando, se estiver nele). */
     private fun openGroup(pos: Int) {
         val g = groups.getOrNull(pos) ?: return
-        if (g.channels.isEmpty()) return
+        if (g.channels.isEmpty()) {
+            // Favoritos/Recentes vazios: explica como preencher
+            val msg = if (g.label == ctx.getString(R.string.group_favorites)) R.string.panel_fav_empty else R.string.panel_recent_empty
+            android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show()
+            poke()
+            return
+        }
         groupLabel = g.label
         channels = g.channels
         playing = channels.indexOfFirst { it.url == playingUrl }
@@ -220,6 +246,10 @@ class ChannelPanel(
                     if (pos != playing) onPick(channels, pos)
                 }
             }
+            v.root.setOnLongClickListener {
+                vh.bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.let { toggleFavorite(it) }
+                true
+            }
             // ◀ na lista de canais abre os grupos
             v.root.setOnKeyListener { _, code, ev ->
                 if (code == android.view.KeyEvent.KEYCODE_DPAD_LEFT && ev.action == android.view.KeyEvent.ACTION_DOWN) {
@@ -232,7 +262,7 @@ class ChannelPanel(
         override fun onBindViewHolder(holder: VH, position: Int) {
             val ch = channels[position]
             val v = holder.v
-            v.tvPcName.text = "${position + 1}  ${ch.name}"
+            v.tvPcName.text = if (ch.url in favs) "${position + 1}  ★ ${ch.name}" else "${position + 1}  ${ch.name}"
             loadLogo(v.ivPcLogo, ch)
             v.ivPcPlaying.visibility = if (position == playing) View.VISIBLE else View.INVISIBLE
             val now = System.currentTimeMillis()

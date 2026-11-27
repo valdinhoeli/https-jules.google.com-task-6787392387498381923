@@ -102,6 +102,20 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        header(R.string.sec_network)
+        row(R.drawable.ic_hq, getString(R.string.speed_title), getString(R.string.speed_sum)) { SpeedTestDialog.show(this) }
+
+        header(R.string.sec_history)
+        row(R.drawable.ic_star_border, getString(R.string.clear_favorites), getString(R.string.clear_favorites_sum)) {
+            confirmClear(R.string.clear_favorites, R.string.clear_favorites_msg) { store.clearFavorites() }
+        }
+        row(R.drawable.ic_refresh, getString(R.string.clear_recents), getString(R.string.clear_recents_sum)) {
+            confirmClear(R.string.clear_recents, R.string.clear_recents_msg) { store.clearRecents() }
+        }
+        row(R.drawable.ic_play, getString(R.string.clear_progress), getString(R.string.clear_progress_sum)) {
+            confirmClear(R.string.clear_progress, R.string.clear_progress_msg) { store.clearProgress() }
+        }
+
         header(R.string.sec_security)
         row(R.drawable.ic_dns, getString(R.string.sec_dns), Http.providers[store.dnsMode.coerceIn(0, Http.providers.lastIndex)].name) {
             chooseDns()
@@ -139,6 +153,16 @@ class SettingsActivity : AppCompatActivity() {
                 runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TELEGRAM_URL))) }
                     .onFailure { Toast.makeText(this, R.string.about_no_telegram, Toast.LENGTH_LONG).show() }
             }
+            .show()
+    }
+
+    /** Confirma antes de apagar (só do perfil em uso; as listas não são afetadas). */
+    private fun confirmClear(title: Int, msg: Int, action: () -> Unit) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage(getString(msg, store.currentProfile.name))
+            .setPositiveButton(R.string.clear_confirm) { _, _ -> action(); toast(R.string.clear_done) }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
