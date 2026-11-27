@@ -71,8 +71,30 @@ object SportsEvents {
         """(?<![a-z])(filme|filmes|film|films|movie|movies|cine|cinema|cinemax|telecine|megapix|hbo|max|paramount|""" +
             """universal|warner|tnt|space|axn|sony|amc|tcm|studio|fx|star|lifetime|a&e|syfy|series|serie|seriados|""" +
             """canal brasil|prime video|netflix|starz|showtime|mgm|lionsgate|filmin|cinecanal|golden|tnt series|""" +
-            """lancamentos|estreias)(?![a-z])"""
+            """lancamentos|estreias|tc action|tc pipoca|tc premium|tc touch|tc fun|tc cult|tc|a&e|a e|film arts|""" +
+            """film & arts|prime box|box brazil|curta|sony movies|comedy central|tbs|usa|e!|dark|noir|cine sky|""" +
+            """sky cine|cinemaworld|hallmark|reelz|gloob|universal tv|studio universal|tnt filmes)(?![a-z])"""
     )
+
+    /**
+     * Descrição/título de filme: elenco, direção, "longa-metragem", ano entre parênteses…
+     * Filme sobre esporte (Rocky, Creed, Ford vs Ferrari) costuma vir também marcado como esporte.
+     */
+    private val filmDesc = Regex(
+        """(?<![a-z])(elenco|direcao|dirigido por|diretor|estrelado por|estrelando|protagonizado|longa-metragem|""" +
+            """longa metragem|filme|baseado em fatos|baseado na historia|cast|director|directed by|starring|""" +
+            """pelicula|reparto)(?![a-z])"""
+    )
+    private val yearInTitle = Regex("""[(\[]\s*(19[2-9]\d|20[0-4]\d)\s*[)\]]""")
+
+    /** O programa tem cara de filme (e não de transmissão ao vivo)? */
+    fun looksLikeFilm(p: Programme): Boolean {
+        if (p.isLiveBroadcast) return false
+        if (p.isFilm) return true
+        if (yearInTitle.containsMatchIn(p.title)) return true
+        val d = p.desc?.let { Text.normalize(it.take(400)) } ?: return false
+        return filmDesc.containsMatchIn(d)
+    }
 
     fun isMovieChannel(ch: Channel): Boolean =
         !isSportsChannel(ch) &&
@@ -144,8 +166,8 @@ object SportsEvents {
             if (!sports && isMovieChannel(ch)) continue
             for (p in list) {
                 if (p.stop - p.start < 10 * 60_000L) continue
-                // o guia diz que é filme/série (e não esporte): não é evento ao vivo
-                if (p.isFilm && !p.isSport && !p.isLiveBroadcast) continue
+                // filme (mesmo "de esporte", marcado filme + esporte no guia) não é evento ao vivo
+                if (looksLikeFilm(p)) continue
                 if (!isEvent(p, sports)) continue
                 val key = eventKey(p.title)
                 val prev = firstAir[key]
@@ -178,7 +200,18 @@ object SportsEvents {
             if (c.p.start <= now) { if (live.size < maxLive) live += SportEvent(c.ch, c.p, true) }
             else if (upcoming.size < maxUpcoming) upcoming += SportEvent(c.ch, c.p, false)
         }
+        // ao vivo primeiro; entre eles, transmissão confirmada como AO VIVO (guia ou título) e
+        // canal de esporte na frente; depois os que começaram mais recentemente
+        live.sortWith(compareByDescending<SportEvent> { liveScore(it) }.thenByDescending { it.programme.start })
         return live + upcoming
+    }
+
+    /** Prioridade de um evento que está passando: 2 = confirmado ao vivo, +1 = canal de esporte. */
+    internal fun liveScore(e: SportEvent): Int {
+        var s = 0
+        if (e.programme.isLiveBroadcast || liveWord.containsMatchIn(Text.normalize(e.programme.title))) s += 2
+        if (isSportsChannel(e.channel)) s += 1
+        return s
     }
 
     /** Atalho (testes): classifica e seleciona de uma vez. */

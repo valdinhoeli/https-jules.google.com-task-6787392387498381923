@@ -21,8 +21,8 @@ android {
         applicationId = "com.iptv.player4k"
         minSdk = 21
         targetSdk = 35
-        versionCode = 24
-        versionName = "1.11.2"
+        versionCode = 25
+        versionName = "1.12.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

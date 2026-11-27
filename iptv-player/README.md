@@ -9,7 +9,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 > **Nenhuma permissão:** o app não pede acesso a câmera, microfone, contatos, localização,
 > fotos, arquivos, telefone ou SMS. Contato: **(81) 99763-1866 via Telegram**.
 
-| Tela inicial (Android TV) | ESPORTES | NOVELAS |
+| Tela inicial (Android TV, sem rolar) | ESPORTES | NOVELAS |
 |---|---|---|
 | ![](docs/home.png) | ![](docs/esportes-tv.png) | ![](docs/novelas-tv.png) |
 | **KIDS** | **Trocar de grupo sem sair do canal** | **Ajustes → Sobre o aplicativo** |
@@ -35,7 +35,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `Eli-Player-4K-v1.11.2.apk` (pasta `release/`). Ele atualiza por cima das versões
+1. Baixe o APK `Eli-Player-4K-v1.12.0.apk` (pasta `release/`). Ele atualiza por cima das versões
    anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
@@ -52,6 +52,16 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.12.0 — tela inicial sem rolar e esportes ao vivo mais certeiros**
+- Tela inicial: os 6 cartões (uma linha na TV/paisagem, 2 linhas de 3 no celular), "Adicionados
+  recentemente" e "Eventos esportivos" ficam todos na tela, sem rolar; as capas se ajustam ao
+  espaço livre (em capa pequena aparece só a classificação)
+- Eventos esportivos: filme de esporte não entra mais (guia marcando filme + esporte, descrição
+  com elenco/direção, ano no título) e canais de filme com nome abreviado (TC Action, TC Pipoca,
+  A&E…) são reconhecidos
+- Prioridade para o que está ao vivo: transmissões confirmadas AO VIVO e canais de esporte
+  primeiro; na aba ESPORTES, os canais passando jogo agora aparecem no topo
 
 **1.11.2 — títulos sem classificação e remoção do PIN**
 - Nova opção (ligada por padrão, em Ajustes e em cada perfil): **Pedir PIN para títulos sem

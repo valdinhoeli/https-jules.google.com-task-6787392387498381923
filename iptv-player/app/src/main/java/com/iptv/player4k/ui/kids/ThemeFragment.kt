@@ -167,7 +167,12 @@ class ThemeFragment : Fragment(R.layout.fragment_theme) {
             liveAdapter.submit(live)
             nextAdapter.submit(next)
             nowAdapter.submit(now)
-            channelAdapter.submit(c.channels)
+            // ESPORTES: canais passando um jogo ao vivo agora vêm primeiro
+            val liveUrls = live.mapTo(HashSet()) { it.channel.url }
+            channelAdapter.submit(
+                if (theme == Theme.SPORTS && liveUrls.isNotEmpty()) c.channels.sortedByDescending { it.url in liveUrls }
+                else c.channels
+            )
             if (shownVod !== c) {
                 shownVod = c
                 vodAdapter.submit(rows(c))

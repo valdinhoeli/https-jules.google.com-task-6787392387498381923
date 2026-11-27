@@ -277,12 +277,20 @@ class MainActivity : AppCompatActivity() {
                 v.animate().scaleX(sc).scaleY(sc).translationZ(if (has) 16f else 0f).setDuration(150).start()
             }
         }
-        // adicionados recentemente (filmes e séries)
-        val posterW = (resources.displayMetrics.density * (if (resources.getBoolean(R.bool.wide_layout)) 92 else 100)).toInt()
+        arrangeHomeCards()
+        // adicionados recentemente (filmes e séries); o tamanho final vem de fitHome()
+        val posterW = (resources.displayMetrics.density * (if (resources.getBoolean(R.bool.wide_layout)) 72 else 76)).toInt()
         recentAdapter = com.iptv.player4k.ui.vod.PosterAdapter({ openDetails(it) }, posterW)
         h.rvHomeRecent.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.RecyclerView.HORIZONTAL, false)
         h.rvHomeRecent.adapter = recentAdapter
         h.rvHomeRecent.itemAnimator = null
+        // tudo na tela sem rolar: as capas ocupam o espaço que sobra entre os cartões e o rodapé
+        h.homeScroll.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (bottom - top != oldBottom - oldTop) h.homeScroll.post { fitHome() }
+        }
+        h.homeCards.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (bottom - top != oldBottom - oldTop) h.homeScroll.post { fitHome() }
+        }
         // rodapé: eventos esportivos
         sportsAdapter = com.iptv.player4k.ui.home.SportsAdapter(::openSportEvent)
         h.rvHomeSports.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.RecyclerView.HORIZONTAL, false)
@@ -297,6 +305,73 @@ class MainActivity : AppCompatActivity() {
         h.btnHomeRefresh.setOnClickListener { vm.refresh() }
         h.btnHomeSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         b.root.post(clockTick)
+    }
+
+    /**
+     * Os 6 cartões: TV/paisagem numa linha só; celular em pé em 2 linhas de 3. Menores que antes,
+     * para caber tudo (cartões, novidades e esportes ao vivo) sem rolar a tela.
+     */
+    private fun arrangeHomeCards() {
+        val h = b.home
+        val d = resources.displayMetrics.density
+        val wide = resources.getBoolean(R.bool.wide_layout)
+        val cards = listOf(h.cardLive, h.cardMovies, h.cardSeries, h.cardKids, h.cardSports, h.cardNovelas)
+        cards.forEach { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+        h.homeCards.removeAllViews()
+        val perRow = if (wide) 6 else 3
+        cards.chunked(perRow).forEach { rowCards ->
+            val row = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                clipChildren = false
+            }
+            rowCards.forEach { card ->
+                card.layoutParams = android.widget.LinearLayout.LayoutParams(0, (d * (if (wide) 96 else 82)).toInt(), 1f)
+                    .apply { val m = (d * 4).toInt(); setMargins(m, m, m, m) }
+                val inner = card.getChildAt(0) as? android.view.ViewGroup
+                if (inner != null) for (i in 0 until inner.childCount) {
+                    when (val v = inner.getChildAt(i)) {
+                        is android.widget.ImageView -> v.layoutParams = v.layoutParams.apply {
+                            width = (d * (if (wide) 28 else 24)).toInt(); height = width
+                        }
+                        is android.widget.TextView -> if (v.id == android.view.View.NO_ID) {
+                            v.textSize = if (wide) 16f else 13.5f
+                        } else {
+                            v.textSize = if (wide) 11.5f else 10.5f
+                            v.maxLines = 2
+                            v.gravity = android.view.Gravity.CENTER
+                            v.ellipsize = android.text.TextUtils.TruncateAt.END
+                        }
+                    }
+                }
+                row.addView(card)
+            }
+            h.homeCards.addView(row)
+        }
+        // ◀ no primeiro cartão de cada linha não sai da tela inicial
+        cards.forEach { it.nextFocusLeftId = android.view.View.NO_ID }
+        h.cardLive.nextFocusLeftId = h.cardLive.id
+    }
+
+    /** Ajusta as capas de "Adicionados recentemente" ao espaço livre: nada para rolar. */
+    private fun fitHome() {
+        val h = b.home
+        if (!h.rvHomeRecent.isVisible || h.homeScroll.height == 0) return
+        val d = resources.displayMetrics.density
+        val content = h.homeScrollContent
+        val titleH = h.tvHomeRecent.height + (h.tvHomeRecent.layoutParams as android.view.ViewGroup.MarginLayoutParams).topMargin
+        val free = h.homeScroll.height - content.paddingTop - content.paddingBottom - h.homeCards.height - titleH -
+            h.rvHomeRecent.paddingTop - h.rvHomeRecent.paddingBottom
+        // nome embaixo da capa (~2 linhas) + folga para o zoom do foco
+        val posterH = (free - d * 40).toInt()
+        val minH = (d * 72).toInt()
+        val maxH = (d * 192).toInt()
+        if (posterH < minH) {
+            // tela muito baixa: a fileira de novidades sai (o resto continua sem rolar)
+            h.tvHomeRecent.isVisible = false
+            h.rvHomeRecent.isVisible = false
+            return
+        }
+        recentAdapter.setItemWidth((posterH.coerceAtMost(maxH) / 1.5f).toInt())
     }
 
     private fun renderHome(s: UiState, lib: LibraryState, hs: HomeSummary) {
@@ -319,6 +394,7 @@ class MainActivity : AppCompatActivity() {
         val recent = if (vm.store.homeShowRecent && !kidsProfile) hs.recent else emptyList()
         h.tvHomeRecent.isVisible = recent.isNotEmpty()
         h.rvHomeRecent.isVisible = recent.isNotEmpty()
+        if (recent.isNotEmpty()) h.homeScroll.post { fitHome() }
         if (recent !== recentAdapter.items) recentAdapter.submit(recent)
         h.tvCountMovies.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_movies_count, movies, movies)
         h.tvCountSeries.text = if (busy) getString(R.string.home_loading) else resources.getQuantityString(R.plurals.home_series_count, series, series)

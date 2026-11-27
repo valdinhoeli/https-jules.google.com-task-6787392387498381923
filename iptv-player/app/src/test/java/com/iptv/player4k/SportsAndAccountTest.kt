@@ -115,6 +115,63 @@ class SportsAndAccountTest {
     }
 
     @Test
+    fun sportsFilmsDoNotCountAsLiveEvents() {
+        val now = 1_000_000_000_000L
+        val h = 3_600_000L
+        // canais de filme com nomes abreviados (Telecine = "TC …") também não entram
+        val tc = Channel("TC Pipoca FHD", "tc", tvgId = "tc", group = "Canais")
+        val ae = Channel("A&E HD", "ae", tvgId = "ae", group = "Variedades")
+        val record = Channel("Record SP", "r", tvgId = "r", group = "Abertos")
+        val band = Channel("Band", "b", tvgId = "b", group = "Abertos")
+        val espn = Channel("ESPN 2", "e", tvgId = "e", group = "Esportes")
+        assertTrue(SportsEvents.isMovieChannel(tc))
+        assertTrue(SportsEvents.isMovieChannel(ae))
+        assertFalse(SportsEvents.isMovieChannel(espn))
+        val epg = EpgData(
+            mapOf(
+                "tc" to listOf(Programme(now - h, now + h, "Duelo: Brasil x Argentina", null, Programme.SPORT)),
+                "ae" to listOf(Programme(now - h, now + h, "Final: Campeões x Rivais", null, Programme.SPORT)),
+                // filme de esporte num canal aberto: o guia marca filme E esporte
+                "r" to listOf(Programme(now - h, now + h, "Ford vs Ferrari", null, Programme.FILM or Programme.SPORT)),
+                // sem marca de filme, mas a descrição é de filme (elenco/direção, ano)
+                "b" to listOf(Programme(now - h, now + h, "Boxe: Rocky x Apollo", "Elenco: Sylvester Stallone. Direção: John G. Avildsen.", Programme.SPORT)),
+                "e" to listOf(Programme(now - h, now + h, "NBA: Lakers x Celtics", "Transmissão do jogo da temporada regular.", Programme.SPORT)),
+            ),
+            emptyMap(), now,
+        )
+        val ev = SportsEvents.find(listOf(tc, ae, record, band, espn), epg, now)
+        assertEquals(listOf("NBA: Lakers x Celtics"), ev.map { it.programme.title })
+        // transmissão marcada AO VIVO no guia continua valendo mesmo com descrição longa
+        assertFalse(SportsEvents.looksLikeFilm(Programme(now, now + h, "Flamengo x Palmeiras", "Direção de imagens ao vivo", Programme.LIVE)))
+        assertTrue(SportsEvents.looksLikeFilm(Programme(now, now + h, "Gol! (2005)", null)))
+    }
+
+    @Test
+    fun liveBroadcastsComeFirst() {
+        val now = 1_000_000_000_000L
+        val h = 3_600_000L
+        val a = Channel("Globo SP", "a", tvgId = "a", group = "Abertos")
+        val b = Channel("ESPN", "b", tvgId = "b", group = "Esportes")
+        val c = Channel("SporTV 2", "c", tvgId = "c", group = "Esportes")
+        val epg = EpgData(
+            mapOf(
+                // começou antes, canal aberto, sem marca de ao vivo
+                "a" to listOf(Programme(now - h, now + h, "Brasileirão: Grêmio x Inter", null)),
+                // canal de esporte, sem marca
+                "b" to listOf(Programme(now - h / 2, now + h, "NBA: Lakers x Celtics", null)),
+                // confirmado AO VIVO pelo guia
+                "c" to listOf(Programme(now - h / 4, now + h, "Vôlei: Brasil x Itália", null, Programme.LIVE)),
+                // próximo (não está passando) fica depois de todos os ao vivo
+                "b2" to emptyList(),
+            ),
+            emptyMap(), now,
+        )
+        val ev = SportsEvents.find(listOf(a, b, c), epg, now)
+        assertEquals(listOf("Vôlei: Brasil x Itália", "NBA: Lakers x Celtics", "Brasileirão: Grêmio x Inter"), ev.map { it.programme.title })
+        assertTrue(ev.all { it.live })
+    }
+
+    @Test
     fun parsesXtreamAccount() {
         val now = 1_700_000_000_000L
         val info = AccountInfo.parseXtream(

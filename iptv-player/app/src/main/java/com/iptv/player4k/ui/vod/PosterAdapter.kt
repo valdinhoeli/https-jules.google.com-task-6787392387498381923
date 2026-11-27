@@ -13,8 +13,24 @@ import com.iptv.player4k.util.Fmt
 
 class PosterAdapter(
     private val onClick: (PosterItem) -> Unit,
-    private val fixedWidth: Int? = null,
+    private var fixedWidth: Int? = null,
 ) : RecyclerView.Adapter<PosterAdapter.VH>() {
+
+    /** Muda o tamanho das capas (tela inicial: cabe no espaço que sobra, sem rolar). */
+    fun setItemWidth(w: Int) {
+        if (fixedWidth == w) return
+        fixedWidth = w
+        notifyDataSetChanged()
+    }
+
+    private fun applySize(b: ItemPosterBinding) {
+        val w = fixedWidth ?: return
+        val h = (w * 1.5f).toInt()
+        if (b.card.layoutParams.width != w || b.card.layoutParams.height != h) {
+            b.card.layoutParams = b.card.layoutParams.apply { width = w; height = h }
+            b.tvTitle.layoutParams = b.tvTitle.layoutParams.apply { width = w }
+        }
+    }
 
     var items: List<PosterItem> = emptyList()
         private set
@@ -28,11 +44,7 @@ class PosterAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val b = ItemPosterBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        fixedWidth?.let { w ->
-            val h = (w * 1.5f).toInt()
-            b.card.layoutParams = b.card.layoutParams.apply { width = w; height = h }
-            b.tvTitle.layoutParams = b.tvTitle.layoutParams.apply { width = w }
-        }
+        applySize(b)
         b.root.setOnFocusChangeListener { v, has ->
             val s = if (has) 1.1f else 1f
             v.animate().scaleX(s).scaleY(s).translationZ(if (has) 12f else 0f).setDuration(150).start()
@@ -49,6 +61,7 @@ class PosterAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
+        applySize(holder.b)
         with(holder.b) {
             tvTitle.text = item.title
             tvPlaceholder.text = item.title
@@ -60,6 +73,9 @@ class PosterAdapter(
             if (p != null) pbWatched.progress = (p * 1000).toInt().coerceAtLeast(30)
             tvPlaceholder.visibility = View.GONE
             AgeBadge.bind(tvAge, item.age)
+            // capa estreita (tela inicial): nota e classificação não cabem lado a lado — fica a classificação
+            val narrow = (fixedWidth ?: Int.MAX_VALUE) < (84 * root.resources.displayMetrics.density)
+            if (narrow && tvAge.visibility == View.VISIBLE) tvRating.visibility = View.GONE
             val cover = CoverArt.cover(root.context, item.title, item.series != null)
             if (item.poster.isNullOrBlank()) {
                 ivPoster.dispose()
