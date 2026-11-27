@@ -61,9 +61,22 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/btnHomeProfile"
+            android:nextFocusLeft="@id/btnHomeProfile"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="6dp"
+            android:clickable="true"
+            android:contentDescription="@string/home_profile"
+            android:focusable="true"
+            android:gravity="center"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnHomeLists"
-            android:nextFocusLeft="@id/btnHomeLists"
             style="@style/HomeIconButton"
             android:layout_marginStart="6dp"
             android:contentDescription="@string/action_playlists"

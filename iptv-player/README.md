@@ -14,6 +14,8 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 | ![](docs/home.png) | ![](docs/esportes-tv.png) | ![](docs/novelas-tv.png) |
 | **KIDS** | **Trocar de grupo sem sair do canal** | **Ajustes → Sobre o aplicativo** |
 | ![](docs/kids-tv.png) | ![](docs/player-grupos.png) | ![](docs/sobre-tv.png) |
+| **Perfis: quem está assistindo?** | | |
+| ![](docs/perfis-tv.png) | | |
 
 | Filmes (destaque) | Guia de programação | Ao vivo com EPG |
 |---|---|---|
@@ -31,7 +33,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `Eli-Player-4K-v1.8.2.apk` (pasta `release/`). Ele atualiza por cima das versões
+1. Baixe o APK `Eli-Player-4K-v1.9.0.apk` (pasta `release/`). Ele atualiza por cima das versões
    anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
@@ -48,6 +50,15 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.9.0 — perfis**
+- "Quem está assistindo?" ao abrir o app (quando há mais de um perfil) e no botão com a inicial
+  do perfil, no topo da tela inicial. Até 6 perfis, com nome e cor
+- Cada perfil tem seus favoritos, recentes, Continuar assistindo, Minha lista e último canal.
+  O perfil Principal continua com tudo o que já existia
+- Perfil KIDS: tela inicial só com KIDS (canais, filmes e séries infantis, até 10 anos), sem
+  listas, ajustes, busca ou multi-tela; no player, os grupos mostram só canais infantis
+- Com PIN dos pais: criar/editar/excluir perfis e sair do perfil KIDS pedem o PIN
 
 **1.8.2 — continuar ou começar do início**
 - Filme ou episódio já começado: o player pergunta "Continuar de 1:05" ou "Começar do início"

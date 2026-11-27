@@ -107,6 +107,11 @@ class MainActivity : AppCompatActivity() {
         }
         // tela recriada pelo sistema: não reabre o último canal de novo
         if (savedInstanceState != null) vm.autoStartDone = true
+        // vários perfis: pergunta quem está assistindo ao abrir o app
+        if (savedInstanceState == null && !com.iptv.player4k.data.Session.profileAsked && vm.store.profiles().size > 1) {
+            com.iptv.player4k.data.Session.profileAsked = true
+            waitingProfile = true
+        }
         savedInstanceState0 = savedInstanceState?.getInt(KEY_SECTION)
         setupTabs(savedInstanceState?.getInt(KEY_TAB) ?: vm.currentTab)
         setupHome()
@@ -137,6 +142,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         vm.start()
+        if (waitingProfile) openProfiles(startup = true)
     }
 
     /**
@@ -157,6 +163,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         SecureScreen.apply(this)
+        // perfil pode ter mudado (tela "Quem está assistindo?")
+        applyProfile()
         // recentes/favoritos/progresso e controle dos pais podem ter mudado (só refaz o necessário)
         vm.onScreenResumed()
         // chaves da tela inicial (Ajustes): rodapé de esportes e novidades
@@ -253,7 +261,12 @@ class MainActivity : AppCompatActivity() {
         listOf(h.cardLive to SECTION_LIVE, h.cardMovies to SECTION_MOVIES, h.cardSeries to SECTION_SERIES, h.cardKids to SECTION_KIDS,
             h.cardSports to SECTION_SPORTS, h.cardNovelas to SECTION_NOVELAS).forEach { (card, sec) ->
             card.setOnClickListener {
-                if (vm.state.value.playlist == null) showPlaylistDialog(null) else showSection(sec)
+                when {
+                    vm.state.value.playlist != null -> showSection(sec)
+                    // perfil KIDS não adiciona listas: só um adulto, no perfil dele
+                    kidsProfile -> Toast.makeText(this, R.string.profile_kids_no_list, Toast.LENGTH_LONG).show()
+                    else -> showPlaylistDialog(null)
+                }
             }
             card.setOnFocusChangeListener { v, has ->
                 // cartões ocupando a largura toda (celular em pé) crescem menos para não cortar
@@ -276,6 +289,7 @@ class MainActivity : AppCompatActivity() {
         TvSafeArea.pad(h.homeHeader, left = 20, top = 13, right = 20)
         TvSafeArea.pad(h.homeScrollContent, left = 20, right = 20)
         TvSafeArea.pad(h.homeSports, left = 20, right = 20, bottom = 17)
+        h.btnHomeProfile.setOnClickListener { openProfiles() }
         h.btnHomeLists.setOnClickListener { guarded { showPlaylistPicker() } }
         h.btnHomeRefresh.setOnClickListener { vm.refresh() }
         h.btnHomeSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
@@ -298,7 +312,8 @@ class MainActivity : AppCompatActivity() {
         val movies = hs.movies
         val series = hs.series
         val busy = lib.loading && lib.library.isEmpty
-        val recent = if (vm.store.homeShowRecent) hs.recent else emptyList()
+        // perfil KIDS: sem "adicionados recentemente" (traria filmes de todo o catálogo)
+        val recent = if (vm.store.homeShowRecent && !kidsProfile) hs.recent else emptyList()
         h.tvHomeRecent.isVisible = recent.isNotEmpty()
         h.rvHomeRecent.isVisible = recent.isNotEmpty()
         if (recent !== recentAdapter.items) recentAdapter.submit(recent)
@@ -367,8 +382,9 @@ class MainActivity : AppCompatActivity() {
     /** Rodapé de eventos esportivos (ao vivo e próximos). */
     private fun renderSports(events: List<com.iptv.player4k.epg.SportEvent>?, epg: EpgState) {
         val h = b.home
-        h.homeSports.isVisible = vm.store.homeShowSports
-        if (!vm.store.homeShowSports) return
+        val show = vm.store.homeShowSports && !kidsProfile
+        h.homeSports.isVisible = show
+        if (!show) return
         val list = events.orEmpty()
         h.rvHomeSports.isVisible = list.isNotEmpty()
         h.tvSportsEmpty.isVisible = list.isEmpty()
@@ -395,7 +411,65 @@ class MainActivity : AppCompatActivity() {
      * "Abrir no último canal assistido": assim que a lista carrega (só na abertura do app),
      * toca o último canal ao vivo. Respeita o controle dos pais (canal bloqueado não abre).
      */
+    // ---------------- Perfis ----------------
+
+    private val kidsProfile get() = vm.store.currentProfile.kids
+    private var profileKey: String? = null
+    /** Esperando a escolha do perfil na abertura: não abre o último canal antes disso. */
+    private var waitingProfile = false
+
+    private fun openProfiles(startup: Boolean = false) {
+        waitingProfile = startup
+        startActivity(
+            Intent(this, com.iptv.player4k.ui.profiles.ProfilesActivity::class.java)
+                .putExtra(com.iptv.player4k.ui.profiles.ProfilesActivity.EXTRA_STARTUP, startup)
+        )
+    }
+
+    /** Avatar no topo e, no perfil KIDS, tela inicial só com o cartão KIDS. */
+    private fun applyProfile() {
+        val p = vm.store.currentProfile
+        val h = b.home
+        h.btnHomeProfile.text = p.initial
+        h.btnHomeProfile.contentDescription = getString(R.string.home_profile) + ": " + p.name
+        val density = resources.displayMetrics.density
+        fun ring(focused: Boolean) = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.OVAL
+            setColor(p.color)
+            setStroke((3 * density).toInt(), if (focused) android.graphics.Color.WHITE else getColor(R.color.home_btn_stroke))
+        }
+        h.btnHomeProfile.background = android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused), ring(true))
+            addState(intArrayOf(), ring(false))
+        }
+        val key = p.id + "|" + p.kids
+        val first = profileKey == null
+        val changed = !first && profileKey != key
+        profileKey = key
+        val kids = p.kids
+        listOf(h.cardLive, h.cardMovies, h.cardSeries, h.cardSports, h.cardNovelas).forEach { it.isVisible = !kids }
+        h.cardKids.isVisible = true
+        // linhas de cartões sem nenhum cartão visível somem
+        listOf(h.cardLive, h.cardMovies, h.cardSeries, h.cardKids, h.cardSports, h.cardNovelas)
+            .mapNotNull { it.parent as? android.view.ViewGroup }.distinct().forEach { row ->
+                row.isVisible = (0 until row.childCount).any { row.getChildAt(it).isVisible }
+            }
+        h.btnHomeLists.isVisible = !kids
+        h.btnHomeSettings.isVisible = !kids
+        if (changed) {
+            // outro perfil: volta para a tela inicial e redesenha recentes/esportes
+            if (vm.section != SECTION_HOME) showSection(SECTION_HOME)
+            renderHome(vm.state.value, vm.library.value, vm.home.value)
+            (if (kids) h.cardKids else h.cardLive).post { (if (kids) h.cardKids else h.cardLive).requestFocus() }
+        } else if (first && kids && vm.section == SECTION_HOME) h.cardKids.post { h.cardKids.requestFocus() }
+        if (waitingProfile) {
+            waitingProfile = false
+            maybeStartLastChannel(vm.state.value)
+        }
+    }
+
     private fun maybeStartLastChannel(s: UiState) {
+        if (waitingProfile) return
         if (vm.autoStartDone || s.playlist == null) return
         if (!vm.store.startLastChannel) { vm.autoStartDone = true; return }
         if (s.totalCount == 0) { if (!s.loading && s.error != null) vm.autoStartDone = true; return }
@@ -513,7 +587,7 @@ class MainActivity : AppCompatActivity() {
             }
             android.view.KeyEvent.KEYCODE_DPAD_UP -> if (isInside(focused, h.rvHomeSports)) {
                 if (h.rvHomeRecent.isVisible && focusNearest(h.rvHomeRecent, focused)) return true
-                return nearestOf(listOf(h.cardKids, h.cardSports, h.cardNovelas).ifEmpty { listOf(h.cardLive) }, focused)?.requestFocus() == true
+                return nearestOf(listOf(h.cardKids, h.cardSports, h.cardNovelas).filter { it.isVisible }.ifEmpty { listOf(h.cardKids) }, focused)?.requestFocus() == true
             }
             android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 // nas fileiras, ◀/▶ no começo/fim não "foge" para outra fileira
@@ -640,6 +714,8 @@ class MainActivity : AppCompatActivity() {
             .forEach { menu.findItem(it)?.isVisible = has }
         // KIDS: sem busca (a tela já mostra todo o conteúdo infantil)
         if (vm.section >= SECTION_KIDS) menu.findItem(R.id.action_search)?.isVisible = false
+        // perfil KIDS: sem listas, ajustes, bloqueio ou multi-tela
+        if (kidsProfile) for (i in 0 until menu.size()) menu.getItem(i).isVisible = false
         menu.findItem(R.id.action_lock)?.apply {
             isVisible = vm.store.hasPin && has
             val unlocked = ParentalSession.isUnlocked

@@ -335,4 +335,28 @@
         <item quantity="one">%d série</item>
         <item quantity="other">%d séries</item>
     </plurals>
+    <string name="profiles_title">Quem está assistindo?</string>
+    <string name="profiles_manage_title">Gerenciar perfis</string>
+    <string name="profiles_sub">Cada perfil tem seus favoritos, Continuar assistindo e Minha lista</string>
+    <string name="profiles_manage">Gerenciar perfis</string>
+    <string name="profiles_done">Concluído</string>
+    <string name="profile_add">Adicionar perfil</string>
+    <string name="profile_edit">Editar perfil</string>
+    <string name="profile_name">Nome</string>
+    <string name="profile_name_required">Digite um nome</string>
+    <string name="profile_name_taken">Já existe um perfil com esse nome</string>
+    <string name="profile_color">Cor</string>
+    <string name="profile_kids">Perfil infantil (KIDS)</string>
+    <string name="profile_kids_info">Mostra só canais, filmes e séries infantis (até 10 anos). Para sair dele é preciso o PIN dos pais.</string>
+    <string name="profile_kids_info_nopin">Mostra só canais, filmes e séries infantis (até 10 anos). Crie um PIN em Ajustes → Controle dos pais para a criança não conseguir sair sozinha.</string>
+    <string name="profile_kids_badge">KIDS</string>
+    <string name="profile_current">em uso</string>
+    <string name="profile_delete">Excluir</string>
+    <string name="profile_delete_title">Excluir o perfil %s?</string>
+    <string name="profile_delete_msg">Favoritos, recentes, Continuar assistindo e Minha lista deste perfil serão apagados. As listas IPTV não são afetadas.</string>
+    <string name="profile_deleted">Perfil %s excluído</string>
+    <string name="profile_pin_manage">Digite o PIN para gerenciar os perfis</string>
+    <string name="profile_pin_leave_kids">Digite o PIN para sair do perfil KIDS</string>
+    <string name="profile_kids_no_list">Peça a um adulto para adicionar uma lista no perfil dele</string>
+    <string name="home_profile">Trocar de perfil</string>
 </resources>

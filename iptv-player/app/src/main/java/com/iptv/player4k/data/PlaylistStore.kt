@@ -95,30 +95,68 @@ class PlaylistStore(context: Context) {
         putSecure(key, arr.toString())
     }
 
+    // ---- Perfis ----
+    /** Todos os perfis; o principal sempre existe e vem primeiro. */
+    fun profiles(): List<Profile> {
+        val saved = Profile.listFromJson(getSecure(K_PROFILES))
+        val main = saved.firstOrNull { it.id == Profile.MAIN_ID }
+            ?: Profile(Profile.MAIN_ID, "Principal", Profile.COLORS[0], false)
+        return listOf(main) + saved.filter { it.id != Profile.MAIN_ID }
+    }
+
+    fun saveProfile(p: Profile) {
+        val list = profiles().toMutableList()
+        val i = list.indexOfFirst { it.id == p.id }
+        if (i >= 0) list[i] = p else list += p
+        putSecure(K_PROFILES, Profile.listToJson(list))
+    }
+
+    /** Apaga o perfil e os dados dele (favoritos, recentes, progresso, minha lista). */
+    fun deleteProfile(id: String) {
+        if (id == Profile.MAIN_ID) return
+        putSecure(K_PROFILES, Profile.listToJson(profiles().filter { it.id != id }))
+        val e = prefs.edit()
+        prefs.all.keys.filter { it.endsWith("~$id") }.forEach { e.remove(it) }
+        if (currentProfileId == id) e.putString(K_PROFILE, Profile.MAIN_ID)
+        e.apply()
+    }
+
+    var currentProfileId: String
+        get() = prefs.getString(K_PROFILE, Profile.MAIN_ID).orEmpty()
+            .takeIf { id -> id == Profile.MAIN_ID || profiles().any { it.id == id } } ?: Profile.MAIN_ID
+        set(v) = prefs.edit().putString(K_PROFILE, v).apply()
+
+    val currentProfile: Profile
+        get() = currentProfileId.let { id -> profiles().firstOrNull { it.id == id } ?: profiles().first() }
+
+    /** Dados por perfil: o principal mantém as chaves antigas; os outros ganham "~id". */
+    private fun scoped(key: String): String =
+        prefs.getString(K_PROFILE, Profile.MAIN_ID).orEmpty().let { if (it.isEmpty()) key else "$key~$it" }
+
     // ---- Favoritos ----
-    fun favorites(playlistId: String): Set<String> = readList("fav_$playlistId").toSet()
+    fun favorites(playlistId: String): Set<String> = readList(scoped("fav_$playlistId")).toSet()
 
     /** @return true se passou a ser favorito. */
     fun toggleFavorite(playlistId: String, url: String): Boolean {
         val set = favorites(playlistId).toMutableSet()
         val added = if (url in set) { set.remove(url); false } else { set.add(url); true }
-        writeList("fav_$playlistId", set.toList())
+        writeList(scoped("fav_$playlistId"), set.toList())
         return added
     }
 
     // ---- Recentes ----
-    fun recents(playlistId: String): List<String> = readList("rec_$playlistId")
+    fun recents(playlistId: String): List<String> = readList(scoped("rec_$playlistId"))
 
     fun addRecent(playlistId: String, url: String) {
         val list = recents(playlistId).toMutableList()
         list.remove(url)
         list.add(0, url)
-        writeList("rec_$playlistId", list.take(MAX_RECENTS))
+        writeList(scoped("rec_$playlistId"), list.take(MAX_RECENTS))
     }
 
     // ---- Progresso de filmes/séries ----
     fun progressMap(playlistId: String): Map<String, Progress> {
-        val o = runCatching { JSONObject(getSecure("prog_$playlistId") ?: "{}") }.getOrElse { JSONObject() }
+        val o = runCatching { JSONObject(getSecure(scoped("prog_$playlistId")) ?: "{}") }.getOrElse { JSONObject() }
         val out = HashMap<String, Progress>()
         o.keys().forEach { url ->
             val e = o.optJSONObject(url) ?: return@forEach
@@ -142,23 +180,23 @@ class PlaylistStore(context: Context) {
             o.put(it.url, JSONObject().put("p", it.position).put("d", it.duration).put("t", it.updatedAt)
                 .put("k", it.kind.name).put("r", it.refId ?: "").put("n", it.title))
         }
-        putSecure("prog_$playlistId", o.toString())
+        putSecure(scoped("prog_$playlistId"), o.toString())
     }
 
     fun removeProgress(playlistId: String, url: String) {
-        val o = runCatching { JSONObject(getSecure("prog_$playlistId") ?: "{}") }.getOrElse { JSONObject() }
+        val o = runCatching { JSONObject(getSecure(scoped("prog_$playlistId")) ?: "{}") }.getOrElse { JSONObject() }
         o.remove(url)
-        putSecure("prog_$playlistId", o.toString())
+        putSecure(scoped("prog_$playlistId"), o.toString())
     }
 
     // ---- Minha lista (filmes "m:<id>" e séries "s:<id>") ----
     fun myList(playlistId: String): Set<String> =
-        prefs.getStringSet("my_$playlistId", emptySet())?.toSet() ?: emptySet()
+        prefs.getStringSet(scoped("my_$playlistId"), emptySet())?.toSet() ?: emptySet()
 
     fun toggleMyList(playlistId: String, key: String): Boolean {
         val set = myList(playlistId).toMutableSet()
         val added = if (key in set) { set.remove(key); false } else { set.add(key); true }
-        prefs.edit().putStringSet("my_$playlistId", set).apply()
+        prefs.edit().putStringSet(scoped("my_$playlistId"), set).apply()
         return added
     }
 
@@ -290,6 +328,8 @@ class PlaylistStore(context: Context) {
         private const val K_PIN_LOCK_WALL = "pin_lock_wall"
         const val PIN_FREE_TRIES = 5
         private const val K_PLAYLISTS = "playlists"
+        private const val K_PROFILES = "profiles"
+        private const val K_PROFILE = "profile_cur"
         private const val K_SELECTED = "selected"
         private const val MAX_RECENTS = 40
         private const val MAX_PROGRESS = 200

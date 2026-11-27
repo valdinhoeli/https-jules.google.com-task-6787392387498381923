@@ -385,14 +385,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Regras atuais (desligadas sem PIN ou quando desbloqueado pelo PIN). */
     fun rules(): ParentalRules {
-        if (!store.hasPin || ParentalSession.isUnlocked) return ParentalRules.OPEN
         val pid = state.value.playlist?.id.orEmpty()
+        // perfil KIDS: sempre restrito (mesmo sem PIN ou com o PIN desbloqueado)
+        if (store.currentProfile.kids) return ParentalRules(
+            true, minOf(store.maxAge, com.iptv.player4k.data.Profile.KIDS_MAX_AGE), true, store.lockedGroups(pid),
+        )
+        if (!store.hasPin || ParentalSession.isUnlocked) return ParentalRules.OPEN
         return ParentalRules(true, store.maxAge, store.autoLockAdult, store.lockedGroups(pid))
     }
 
     private fun applyParental() {
         val r = rules()
-        live = liveAll.filter { !r.isBlocked(it.age, it.group) }
+        // perfil KIDS: só canais infantis (também no painel de canais do player e na multi-tela)
+        val kidsOnly = store.currentProfile.kids
+        live = liveAll.filter { !r.isBlocked(it.age, it.group) && (!kidsOnly || com.iptv.player4k.data.Kids.isKidsChannel(it)) }
         byUrl = live.associateBy { it.url }
         Session.live = live
         Session.allGroups = LinkedHashSet<String>().apply {
@@ -454,7 +460,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun onScreenResumed() {
         val pid = state.value.playlist?.id.orEmpty()
-        val key = listOf(store.hasPin, ParentalSession.isUnlocked, store.maxAge, store.autoLockAdult, store.lockedGroups(pid).hashCode())
+        val key = listOf(store.currentProfileId, store.currentProfile.kids, store.hasPin, ParentalSession.isUnlocked,
+            store.maxAge, store.autoLockAdult, store.lockedGroups(pid).hashCode())
             .joinToString("|")
         if (key != lastRulesKey) {
             val first = lastRulesKey == null

@@ -13,4 +13,6 @@ object Session {
     @Volatile var live: List<Channel> = emptyList()
     /** todos os grupos/categorias da lista (para a tela de bloqueio) */
     @Volatile var allGroups: List<String> = emptyList()
+    /** "Quem está assistindo?" já foi mostrado nesta abertura do app */
+    @Volatile var profileAsked: Boolean = false
 }
