@@ -82,10 +82,12 @@ class SettingsActivity : AppCompatActivity() {
             }
         } else {
             row(R.drawable.ic_lock, getString(R.string.par_change_pin), getString(R.string.par_change_pin_sum)) {
-                withPin { PinDialog.create(this) { pin -> store.setPin(pin); toast(R.string.par_pin_saved) } }
+                // trocar o PIN pede sempre o PIN atual (ou o de recuperação), mesmo já desbloqueado nesta tela
+                PinDialog.requireForRemoval(this) { PinDialog.create(this) { pin -> store.setPin(pin); pinOk = true; toast(R.string.par_pin_saved) } }
             }
             row(R.drawable.ic_child, getString(R.string.par_max_age), maxAgeLabel()) { withPin { chooseMaxAge() } }
             switch(R.drawable.ic_shield, R.string.par_adult, R.string.par_adult_sum, store.autoLockAdult, needsPin = true) { store.autoLockAdult = it }
+            switch(R.drawable.ic_lock, R.string.par_unrated, R.string.par_unrated_sum, store.unratedLock, needsPin = true) { store.unratedLock = it }
             val pid = Session.playlist?.id.orEmpty()
             val locked = store.lockedGroups(pid).size
             row(R.drawable.ic_list, getString(R.string.par_groups), resources.getQuantityString(R.plurals.par_groups_sum, locked, locked)) {
@@ -93,8 +95,10 @@ class SettingsActivity : AppCompatActivity() {
             }
             switch(R.drawable.ic_lock, R.string.par_protect_lists, R.string.par_protect_lists_sum, store.protectLists, needsPin = true) { store.protectLists = it }
             row(R.drawable.ic_lock_open, getString(R.string.par_remove_pin), getString(R.string.par_remove_pin_sum)) {
-                withPin {
+                // remover pede SEMPRE o PIN atual ou o PIN de recuperação
+                PinDialog.requireForRemoval(this) {
                     store.setPin(null)
+                    pinOk = false
                     ParentalSession.lock()
                     toast(R.string.par_pin_removed)
                     build()

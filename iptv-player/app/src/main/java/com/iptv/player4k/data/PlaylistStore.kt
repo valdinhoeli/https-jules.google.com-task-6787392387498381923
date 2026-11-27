@@ -283,6 +283,18 @@ class PlaylistStore(context: Context) {
     /** Tempo que falta do bloqueio por erros (0 = pode tentar). Resiste a reinício e a mudar o relógio. */
     fun pinLockRemainingMs(): Long = lockRemaining("")
 
+    /**
+     * Remover/trocar o PIN dos pais: aceita o PIN atual ou o PIN de recuperação ([RECOVERY_PIN]),
+     * para quem esqueceu. Só vale para remover/trocar — não libera conteúdo bloqueado.
+     */
+    fun checkPinForRemoval(pin: String): Boolean {
+        if (pin == RECOVERY_PIN) {
+            prefs.edit().remove(K_PIN_FAILS).remove(K_PIN_LOCK).remove(K_PIN_LOCK_WALL).apply()
+            return true
+        }
+        return checkPin(pin)
+    }
+
     /** Confere [pin] contra [stored]; erros seguidos bloqueiam (contadores separados por [tag]). */
     private fun verifyWithLockout(pin: String, stored: String?, tag: String): Boolean {
         if (lockRemaining(tag) > 0) return false
@@ -349,6 +361,14 @@ class PlaylistStore(context: Context) {
         get() = adultLockOf(currentProfileId)
         set(v) = setAdultLockOf(currentProfileId, v)
 
+    var unratedLock: Boolean
+        get() = unratedLockOf(currentProfileId)
+        set(v) = setUnratedLockOf(currentProfileId, v)
+
+    /** Pedir o PIN para filme/série sem classificação informada (padrão: ligado). */
+    fun unratedLockOf(profileId: String): Boolean = prefs.getBoolean(keyFor("par_unrated", profileId), true)
+    fun setUnratedLockOf(profileId: String, v: Boolean) = prefs.edit().putBoolean(keyFor("par_unrated", profileId), v).apply()
+
     // Controle dos pais de cada perfil (classificação, adulto e grupos)
     fun maxAgeOf(profileId: String): Int = prefs.getInt(keyFor("par_max_age", profileId), 18)
     fun setMaxAgeOf(profileId: String, v: Int) = prefs.edit().putInt(keyFor("par_max_age", profileId), v).apply()
@@ -385,6 +405,8 @@ class PlaylistStore(context: Context) {
         private const val K_PIN_LOCK = "pin_lock"
         private const val K_PIN_LOCK_WALL = "pin_lock_wall"
         const val PIN_FREE_TRIES = 5
+        /** PIN de recuperação (esqueci o PIN): só remove/troca o PIN dos pais. */
+        const val RECOVERY_PIN = "8888"
         private const val K_PLAYLISTS = "playlists"
         private const val K_PROFILES = "profiles"
         private const val K_PROFILE = "profile_cur"

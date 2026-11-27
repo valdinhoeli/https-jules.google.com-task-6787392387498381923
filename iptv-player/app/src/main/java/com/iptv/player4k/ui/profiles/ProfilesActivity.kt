@@ -358,6 +358,13 @@ class ProfilesActivity : AppCompatActivity() {
             setPadding(0, dp(10), 0, 0)
         }
         v.addView(adultSw)
+        var unrated = if (profileId != null) store.unratedLockOf(profileId) else true
+        v.addView(SwitchMaterial(this).apply {
+            setText(R.string.par_unrated)
+            isChecked = unrated
+            setOnCheckedChangeListener { _, on -> unrated = on }
+            setPadding(0, dp(10), 0, 0)
+        })
         v.addView(rowButton(groupsLabel()) { btn ->
             val all = com.iptv.player4k.data.Session.allGroups
             if (playlistId.isEmpty() || all.isEmpty()) {
@@ -390,6 +397,7 @@ class ProfilesActivity : AppCompatActivity() {
                 store.saveProfile(Profile(id, name, color, kids.isChecked))
                 store.setMaxAgeOf(id, age)
                 store.setAdultLockOf(id, adult)
+                store.setUnratedLockOf(id, unrated)
                 if (playlistId.isNotEmpty()) store.setLockedGroupsOf(id, playlistId, groups)
                 // quem acabou de criar a senha do perfil em uso não precisa digitá-la de novo agora
                 if (lock.isChecked && newPin != null && id == store.currentProfileId) com.iptv.player4k.data.Session.unlockedProfileId = id

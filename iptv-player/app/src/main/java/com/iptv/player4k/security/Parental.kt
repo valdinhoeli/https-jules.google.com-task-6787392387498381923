@@ -44,6 +44,19 @@ object AgeRating {
         }
     }
 
+    private val titleTag = Regex(
+        """[\[(]\s*\+?\s*(L|10|12|14|16|18)\s*\+?\s*(?:anos)?\s*[)\]]|(?<![\d.])\+\s?(10|12|14|16|18)(?!\d)|(?<![\d.])(10|12|14|16|18)\s?\+(?!\d)""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Classificação escrita no nome: "Filme [16]", "Filme (14+)", "Filme +16", "Filme 16+". */
+    fun fromTitle(name: String?): Int? {
+        if (name.isNullOrBlank()) return null
+        val m = titleTag.find(name) ?: return null
+        val v = m.groupValues.drop(1).firstOrNull { it.isNotEmpty() } ?: return null
+        return parse(v)
+    }
+
     fun label(age: Int): String = if (age <= 0) "L" else age.toString()
 
     /** Cores oficiais da classificação indicativa brasileira. */
@@ -65,6 +78,8 @@ class ParentalRules(
     val maxAge: Int,
     val autoLockAdult: Boolean,
     val lockedGroups: Set<String>,
+    /** "Pedir PIN para títulos sem classificação" (na hora do play; as listas continuam mostrando) */
+    val blockUnrated: Boolean = false,
 ) {
     /** Idade efetiva: a informada ou 18 para categorias adultas. */
     fun effectiveAge(age: Int?, group: String?): Int? =
@@ -77,6 +92,10 @@ class ParentalRules(
         val a = effectiveAge(age, group) ?: return false
         return a > maxAge
     }
+
+    /** Na hora do play: também barra filme/série sem classificação conhecida, se o perfil pedir. */
+    fun isBlockedAtPlay(age: Int?, group: String?): Boolean =
+        isBlocked(age, group) || (enabled && blockUnrated && maxAge < 18 && effectiveAge(age, group) == null)
 
     fun isGroupBlocked(group: String): Boolean =
         enabled && (group in lockedGroups || (autoLockAdult && AgeRating.isAdult(group)))
@@ -114,13 +133,13 @@ object ParentalPolicy {
         val profile = store.currentProfile
         val groups = store.lockedGroups(playlistId)
         if (profile.kids) return ParentalRules(
-            true, minOf(store.maxAge, com.iptv.player4k.data.Profile.KIDS_MAX_AGE), true, groups,
+            true, minOf(store.maxAge, com.iptv.player4k.data.Profile.KIDS_MAX_AGE), true, groups, blockUnrated = true,
         )
         if (store.hasPin && ParentalSession.isUnlocked) return ParentalRules.OPEN
         if (store.hasPin || profile.id != com.iptv.player4k.data.Profile.MAIN_ID) {
-            return ParentalRules(true, store.maxAge, store.autoLockAdult, groups)
+            return ParentalRules(true, store.maxAge, store.autoLockAdult, groups, store.unratedLock)
         }
-        return if (store.maxAge < 18 || groups.isNotEmpty()) ParentalRules(true, store.maxAge, false, groups)
+        return if (store.maxAge < 18 || groups.isNotEmpty()) ParentalRules(true, store.maxAge, false, groups, store.unratedLock)
         else ParentalRules.OPEN
     }
 }

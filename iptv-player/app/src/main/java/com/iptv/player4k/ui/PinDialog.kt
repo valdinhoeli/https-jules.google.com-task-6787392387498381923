@@ -29,6 +29,14 @@ object PinDialog {
             { store.checkPin(it) }, { store.pinLockRemainingMs() }, onCancel, onOk)
     }
 
+    /** Remover/trocar o PIN: sempre pede (PIN atual ou o de recuperação). */
+    fun requireForRemoval(activity: Activity, onOk: () -> Unit) {
+        val store = PlaylistStore(activity)
+        if (!store.hasPin) { onOk(); return }
+        ask(activity, activity.getString(R.string.pin_title), activity.getString(R.string.pin_remove_ask),
+            { store.checkPinForRemoval(it) }, { store.pinLockRemainingMs() }, null, onOk)
+    }
+
     /** Senha do perfil (quando "Bloquear perfil" está ligado). Sem senha, executa direto. */
     fun requireProfile(activity: Activity, profile: com.iptv.player4k.data.Profile, onCancel: (() -> Unit)? = null, onOk: () -> Unit) {
         val store = PlaylistStore(activity)

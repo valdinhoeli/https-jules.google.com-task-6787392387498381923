@@ -145,9 +145,11 @@ class PlayerActivity : AppCompatActivity() {
                 gating = false
                 onAllowed()
             }
-            if (!rules.isBlocked(age, group)) { allow(); return@launch }
+            if (!rules.isBlockedAtPlay(age, group)) { allow(); return@launch }
             val shown = rules.effectiveAge(age, group)
+            val limit = if (rules.maxAge >= 18) "18" else com.iptv.player4k.security.AgeRating.name(rules.maxAge)
             val what = when {
+                shown == null && !(group != null && group in rules.lockedGroups) -> getString(R.string.gate_unrated, limit)
                 group != null && group in rules.lockedGroups -> getString(R.string.gate_group, group)
                 shown != null && shown > rules.maxAge -> getString(R.string.gate_age, com.iptv.player4k.security.AgeRating.name(shown),
                     if (rules.maxAge >= 18) "18" else com.iptv.player4k.security.AgeRating.name(rules.maxAge))
@@ -172,13 +174,15 @@ class PlayerActivity : AppCompatActivity() {
         val repo = com.iptv.player4k.data.LibraryRepository(this)
         return if (ch.kind == ContentKind.MOVIE) {
             val m = lib.movie(ch.refId)
-            val age = ch.age ?: m?.age ?: if (m != null && pl != null)
-                kotlinx.coroutines.withTimeoutOrNull(6_000) { runCatching { repo.movieDetails(pl, m) }.getOrNull()?.age } else null
+            val age = ch.age ?: m?.age ?: (if (m != null && pl != null)
+                kotlinx.coroutines.withTimeoutOrNull(6_000) { runCatching { repo.movieDetails(pl, m) }.getOrNull()?.age } else null)
+                ?: com.iptv.player4k.security.AgeRating.fromTitle(m?.name ?: ch.name)
             age to (m?.category ?: ch.group)
         } else {
             val sr = lib.series(ch.refId)
-            val age = ch.age ?: sr?.age ?: if (sr != null && pl != null)
-                kotlinx.coroutines.withTimeoutOrNull(6_000) { runCatching { repo.seriesDetails(pl, sr) }.getOrNull()?.age } else null
+            val age = ch.age ?: sr?.age ?: (if (sr != null && pl != null)
+                kotlinx.coroutines.withTimeoutOrNull(6_000) { runCatching { repo.seriesDetails(pl, sr) }.getOrNull()?.age } else null)
+                ?: com.iptv.player4k.security.AgeRating.fromTitle(sr?.name ?: ch.name)
             age to (sr?.category ?: ch.group)
         }
     }

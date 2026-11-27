@@ -140,7 +140,7 @@ class DetailsActivity : AppCompatActivity() {
         val posterUrl = d?.poster ?: poster
         if (posterUrl.isNullOrBlank()) b.ivPoster.setImageDrawable(cover)
         else b.ivPoster.load(posterUrl) { crossfade(true); error(cover) }
-        val age = d?.age ?: m?.age ?: s?.age
+        val age = d?.age ?: m?.age ?: s?.age ?: com.iptv.player4k.security.AgeRating.fromTitle(title)
             ?: if (com.iptv.player4k.security.AgeRating.isAdult(m?.category ?: s?.category)) 18 else null
         com.iptv.player4k.util.AgeBadge.bind(b.tvAge, age)
         b.ivBackdrop.load(backdrop ?: d?.poster ?: poster) { crossfade(true) }
@@ -153,7 +153,7 @@ class DetailsActivity : AppCompatActivity() {
         bindResume()
         bindTrailer()
         // bloqueado pelo controle dos pais (idade dos detalhes): cadeado no Assistir; o player pede o PIN
-        val blocked = com.iptv.player4k.security.ParentalPolicy.rules(store, pid).isBlocked(age, m?.category ?: s?.category)
+        val blocked = com.iptv.player4k.security.ParentalPolicy.rules(store, pid).isBlockedAtPlay(age, m?.category ?: s?.category)
         b.btnPlay.setIconResource(if (blocked) R.drawable.ic_lock else R.drawable.ic_play)
     }
 

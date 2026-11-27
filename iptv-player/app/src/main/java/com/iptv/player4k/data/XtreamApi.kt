@@ -140,7 +140,7 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                     rating = rating(m["rating"]),
                     added = m["added"]?.toLongOrNull() ?: 0L,
                     xtreamId = id.toIntOrNull(),
-                    age = ageOf(m["age"] ?: m["mpaa_rating"] ?: m["rating_mpaa"] ?: m["certification"]),
+                    age = ageOf(AGE_KEYS.firstNotNullOfOrNull { k -> m[k]?.takeIf { it.isNotBlank() } }),
                     trailer = com.iptv.player4k.util.Trailer.youtubeId(m["youtube_trailer"] ?: m["trailer"]),
                 )
             }
@@ -165,7 +165,7 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                     plot = m["plot"]?.takeIf { it.isNotBlank() },
                     genre = m["genre"]?.takeIf { it.isNotBlank() },
                     backdrop = m["backdrop_path"]?.takeIf { it.startsWith("http") },
-                    age = ageOf(m["age"] ?: m["mpaa_rating"] ?: m["rating_mpaa"] ?: m["certification"]),
+                    age = ageOf(AGE_KEYS.firstNotNullOfOrNull { k -> m[k]?.takeIf { it.isNotBlank() } }),
                     trailer = com.iptv.player4k.util.Trailer.youtubeId(m["youtube_trailer"] ?: m["trailer"]),
                 )
             }
@@ -173,6 +173,12 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
         }
 
         private fun ageOf(s: String?): Int? = com.iptv.player4k.security.AgeRating.parse(s)
+
+        /** Campos em que os painéis Xtream costumam mandar a classificação indicativa. */
+        private val AGE_KEYS = listOf(
+            "age", "mpaa_rating", "rating_mpaa", "certification", "classification", "age_rating",
+            "content_rating", "parental_rating", "certificate", "rating_age", "classificacao",
+        )
 
         private fun rating(s: String?): Float? = s?.replace(',', '.')?.toFloatOrNull()?.takeIf { it > 0f }
 
@@ -213,7 +219,7 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                 durationSecs = durationSecs(info),
                 backdrop = info?.get("backdrop_path").str()?.takeIf { it.startsWith("http") },
                 poster = (info?.get("movie_image").str() ?: info?.get("cover_big").str())?.takeIf { it.startsWith("http") },
-                age = ageOf(info?.get("age").str() ?: info?.get("mpaa_rating").str() ?: info?.get("rating_mpaa").str() ?: info?.get("certification").str()),
+                age = ageOf(AGE_KEYS.firstNotNullOfOrNull { k -> info?.get(k).str()?.takeIf { it.isNotBlank() } }),
                 trailer = trailerOf(info),
             )
         }
@@ -265,7 +271,7 @@ class XtreamApi(creds: XtreamCreds, userAgent: String = "") {
                 poster = info?.get("cover").str()?.takeIf { it.startsWith("http") },
                 episodes = episodes,
                 trailer = trailerOf(info),
-                age = ageOf(info?.get("age").str() ?: info?.get("mpaa_rating").str() ?: info?.get("rating_mpaa").str() ?: info?.get("certification").str()),
+                age = ageOf(AGE_KEYS.firstNotNullOfOrNull { k -> info?.get(k).str()?.takeIf { it.isNotBlank() } }),
             )
         }
     }

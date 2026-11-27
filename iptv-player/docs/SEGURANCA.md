@@ -75,3 +75,11 @@ concede na instalação, sem nenhuma pergunta ao usuário. Sem ela não é poss�
 | `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | androidx.core | Receptor do PiP registrado direto; no Android < 13 aceita só intents com um segredo aleatório do processo |
 
 Conferência: `aapt2 dump permissions app-release.apk` → somente `INTERNET`.
+
+## Atualização 1.11.2 — PIN de recuperação
+
+Remover ou trocar o PIN dos pais exige sempre o PIN atual. Para quem esqueceu, existe o
+**PIN de recuperação `8888`** (decisão do produto), aceito **somente** para remover/trocar o PIN —
+não libera conteúdo bloqueado, perfis com senha nem o perfil KIDS. Risco conhecido: quem souber o
+número consegue tirar o controle dos pais; por isso o app não mostra o número na tela (o pedido de
+PIN orienta a falar com o suporte pelo Telegram).
