@@ -35,7 +35,7 @@ em **SD, HD, Full HD e 4K** (incluindo HDR10/HLG/Dolby Vision quando o aparelho 
 
 ## Instalar
 
-1. Baixe o APK `Eli-Player-4K-v1.12.0.apk` (pasta `release/`). Ele atualiza por cima das versões
+1. Baixe o APK `Eli-Player-4K-v1.12.1.apk` (pasta `release/`). Ele atualiza por cima das versões
    anteriores (IPTV Player 4K): o pacote e a assinatura são os mesmos, listas e ajustes são mantidos.
 2. No Android, permita "Instalar apps desconhecidos" para o navegador/gerenciador de arquivos.
 3. Abra o APK e instale. Na Android TV / TV Box, copie o APK via pendrive ou use
@@ -52,6 +52,16 @@ Requisitos: Android 5.0 (API 21) ou superior.
 - Várias listas salvas, atualização manual, User-Agent configurável por lista
 - Parser tolerante: `tvg-logo`, `group-title`, `#EXTGRP`, `#EXTVLCOPT` (user-agent/referrer),
   `#EXTHTTP` e cabeçalhos estilo Kodi (`url|User-Agent=…`)
+
+**1.12.1 — correções: TV, canais 24h e Android 7**
+- Android TV 12: na tela inicial o foco não passava de SÉRIES para KIDS (trava de foco do layout
+  antigo no meio da linha nova) — agora percorre os 6 cartões e só para nas pontas
+- Canais 24h que "passam uma parte e travam na seguinte": quando o servidor fecha a conexão
+  entre episódios, o canal reconecta sozinho; um vigia reconecta também se a imagem ficar parada
+  6 s ou carregando 12 s ("Sincronizando o canal…"), no máximo 8 vezes por minuto
+- Android 7: a filtragem da lista (controle dos pais, grupos) saiu da thread da tela — com listas
+  de 50–100 mil itens ela travava a tela em TV Box fraca; e o app passa a confiar nas raízes do
+  Let's Encrypt (ISRG X1/X2), que o Android 7.0 não tem (listas, guias e logos em HTTPS falhavam)
 
 **1.12.0 — tela inicial sem rolar e esportes ao vivo mais certeiros**
 - Tela inicial: os 6 cartões (uma linha na TV/paisagem, 2 linhas de 3 no celular), "Adicionados

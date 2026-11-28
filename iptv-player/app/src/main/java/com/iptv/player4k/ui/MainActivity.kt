@@ -347,9 +347,18 @@ class MainActivity : AppCompatActivity() {
             }
             h.homeCards.addView(row)
         }
-        // ◀ no primeiro cartão de cada linha não sai da tela inicial
-        cards.forEach { it.nextFocusLeftId = android.view.View.NO_ID }
-        h.cardLive.nextFocusLeftId = h.cardLive.id
+        // Os "travas" de foco do layout antigo (2 linhas de 3) ficavam no meio da linha nova
+        // (SÉRIES ▶ KIDS não passava). Agora: só as pontas de cada linha seguram o foco.
+        cards.forEach {
+            it.nextFocusLeftId = android.view.View.NO_ID
+            it.nextFocusRightId = android.view.View.NO_ID
+            it.nextFocusUpId = android.view.View.NO_ID
+            it.nextFocusDownId = android.view.View.NO_ID
+        }
+        cards.chunked(perRow).forEach { row ->
+            row.first().nextFocusLeftId = row.first().id
+            row.last().nextFocusRightId = row.last().id
+        }
     }
 
     /** Ajusta as capas de "Adicionados recentemente" ao espaço livre: nada para rolar. */

@@ -5,7 +5,7 @@ computador, sem depender do GitHub. Você recebeu 3 arquivos:
 
 | Arquivo | O que é |
 |---|---|
-| `Eli-Player-4K-projeto-v1.12.0.zip` | O projeto completo (esta pasta), pronto para abrir e compilar |
+| `Eli-Player-4K-projeto-v1.12.1.zip` | O projeto completo (esta pasta), pronto para abrir e compilar |
 | `Eli-Player-4K-historico.bundle` | Todo o histórico de versões (git), para guardar ou levar para outro serviço |
 | `Eli-Player-4K-chave-assinatura.zip` | A chave que assina o APK (**guarde com cuidado**, veja abaixo) |
 

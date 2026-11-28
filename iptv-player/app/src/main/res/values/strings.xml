@@ -419,5 +419,6 @@
     <string name="par_unrated_sum">Filmes e séries sem classificação informada pelo servidor só tocam com o PIN (as listas continuam mostrando)</string>
     <string name="gate_unrated">sem classificação informada (o limite deste perfil é %s)</string>
     <string name="pin_remove_ask">Digite o PIN atual para continuar. Esqueceu o PIN? Use o PIN de recuperação (fale com o suporte pelo Telegram).</string>
+    <string name="live_resync">Sincronizando o canal…</string>
     <string name="home_profile">Trocar de perfil</string>
 </resources>

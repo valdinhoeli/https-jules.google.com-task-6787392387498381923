@@ -221,7 +221,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 com.iptv.player4k.util.Perf.mark("lista: ${result.channels.size} itens prontos")
                 val saved = if (forceRefresh) p.copy(updatedAt = System.currentTimeMillis()).also { store.save(it) } else p
                 all = result.channels
-                liveAll = all.filter { it.kind == ContentKind.LIVE }
+                // listas grandes (100 mil itens) em TV Box fraca: nada de laço longo na thread da tela
+                val everything = all
+                liveAll = withContext(Dispatchers.Default) { everything.filter { it.kind == ContentKind.LIVE } }
                 applyParental()
                 loadedId = p.id
                 _state.update { it.copy(loading = false, error = null, totalCount = live.size, allCount = all.size) }
@@ -280,7 +282,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun publishLibrary(lib: Library) {
+    private suspend fun publishLibrary(lib: Library) {
         Session.library = lib
         _library.value = LibraryState(loading = false, library = lib)
         applyParental()
@@ -387,18 +389,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun rules(): ParentalRules =
         com.iptv.player4k.security.ParentalPolicy.rules(store, state.value.playlist?.id.orEmpty())
 
-    private fun applyParental() {
+    /**
+     * Aplica o controle dos pais à lista. A filtragem roda em segundo plano: com 50–100 mil
+     * itens, numa TV Box com Android 7, ela travava a tela ("o app trava depois da lista").
+     */
+    private suspend fun applyParental() {
         val r = rules()
         // perfil KIDS: só canais infantis (também no painel de canais do player e na multi-tela)
         val kidsOnly = store.currentProfile.kids
-        live = liveAll.filter { !r.isBlocked(it.age, it.group) && (!kidsOnly || com.iptv.player4k.data.Kids.isKidsChannel(it)) }
-        byUrl = live.associateBy { it.url }
+        val src = liveAll
+        val everything = all
+        val lib = _library.value.library
+        val (filtered, index, groups) = withContext(Dispatchers.Default) {
+            val f = src.filter { !r.isBlocked(it.age, it.group) && (!kidsOnly || com.iptv.player4k.data.Kids.isKidsChannel(it)) }
+            val g = LinkedHashSet<String>().apply {
+                src.forEach { add(it.group) }
+                everything.forEach { if (it.kind != ContentKind.LIVE) add(it.group) }
+                addAll(lib.movieCategories); addAll(lib.seriesCategories)
+            }.toList()
+            Triple(f, f.associateBy { it.url }, g)
+        }
+        live = filtered
+        byUrl = index
         Session.live = live
-        Session.allGroups = LinkedHashSet<String>().apply {
-            liveAll.forEach { add(it.group) }
-            all.forEach { if (it.kind != ContentKind.LIVE) add(it.group) }
-            addAll(_library.value.library.movieCategories); addAll(_library.value.library.seriesCategories)
-        }.toList()
+        Session.allGroups = groups
         _state.update { it.copy(totalCount = live.size) }
         recomputeKids()
     }
@@ -469,10 +483,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Chamado após PIN/configurações dos pais mudarem. */
     fun parentalChanged() {
-        applyParental()
-        refreshSports()
-        rebuild()
-        contentChanged()
+        viewModelScope.launch {
+            applyParental()
+            refreshSports()
+            rebuild()
+            contentChanged()
+        }
     }
 
     fun addRecent(ch: Channel) {

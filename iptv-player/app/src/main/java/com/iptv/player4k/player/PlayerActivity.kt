@@ -110,6 +110,57 @@ class PlayerActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val hideOsd = Runnable { b.osd.isVisible = false }
+    // ---- vigia do ao vivo: canal 24h que "passa uma parte e trava na seguinte" ----
+    private var lastLivePos = -1L
+    private var stuckSince = 0L
+    private var bufferingSince = 0L
+    private val liveReconnects = ArrayDeque<Long>()
+
+    /**
+     * A cada segundo, no ao vivo: imagem parada (posição sem andar por 6 s) ou carregando há
+     * mais de 12 s → reconecta o canal. Pega a troca de episódio dos canais 24h (o relógio do
+     * vídeo recomeça do zero e o player fica esperando) e conexões que caem sem erro.
+     */
+    private val liveWatchdog = object : Runnable {
+        override fun run() {
+            val p = player
+            val ch = channels.getOrNull(index)
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (p != null && ch?.kind == ContentKind.LIVE && p.playWhenReady && !asking) {
+                when (p.playbackState) {
+                    Player.STATE_READY -> {
+                        bufferingSince = 0L
+                        val pos = p.currentPosition
+                        if (pos != lastLivePos) { lastLivePos = pos; stuckSince = now }
+                        else if (now - stuckSince > 6_000L) reconnectLive()
+                    }
+                    Player.STATE_BUFFERING -> {
+                        if (bufferingSince == 0L) bufferingSince = now
+                        else if (now - bufferingSince > 12_000L) reconnectLive()
+                    }
+                    else -> { bufferingSince = 0L; stuckSince = now }
+                }
+            } else {
+                bufferingSince = 0L; stuckSince = now
+            }
+            handler.postDelayed(this, 1_000L)
+        }
+    }
+
+    /** Reabre o canal ao vivo do ponto atual (no máx. 8 vezes por minuto, para não ficar em laço). */
+    private fun reconnectLive() {
+        val ch = channels.getOrNull(index) ?: return
+        val now = android.os.SystemClock.elapsedRealtime()
+        while (liveReconnects.isNotEmpty() && now - liveReconnects.first() > 60_000L) liveReconnects.removeFirst()
+        if (liveReconnects.size >= 8) return
+        liveReconnects.addLast(now)
+        lastLivePos = -1L; stuckSince = now; bufferingSince = 0L
+        b.tvStatus.setText(R.string.live_resync)
+        b.tvStatus.isVisible = !(::panel.isInitialized && panel.isShowing)
+        handler.postDelayed({ if (player?.playbackState == Player.STATE_READY) b.tvStatus.isVisible = false }, 3_000L)
+        startMedia(ch)
+    }
+
     private val retryRunnable = Runnable {
         player?.let { it.prepare(); it.playWhenReady = !asking }
     }
@@ -260,6 +311,8 @@ class PlayerActivity : AppCompatActivity() {
         }
         handler.postDelayed(progressSaver, 10_000)
         handler.postDelayed(epgTicker, 30_000)
+        handler.removeCallbacks(liveWatchdog)
+        handler.postDelayed(liveWatchdog, 2_000)
     }
 
     override fun onPause() {
@@ -342,6 +395,7 @@ class PlayerActivity : AppCompatActivity() {
         handler.removeCallbacks(progressSaver)
         handler.removeCallbacks(epgTicker)
         handler.removeCallbacks(nextEpisode)
+        handler.removeCallbacks(liveWatchdog)
         saveProgress()
         player?.let {
             it.removeListener(listener)
@@ -358,6 +412,10 @@ class PlayerActivity : AppCompatActivity() {
         handler.removeCallbacks(nextEpisode)
         retryCount = 0
         mimeAttempt = 0
+        lastLivePos = -1L
+        stuckSince = android.os.SystemClock.elapsedRealtime()
+        bufferingSince = 0L
+        liveReconnects.clear()
         mimeCandidates = StreamFactory.candidatesFor(ch.url)
         hideError()
         b.tvStatus.isVisible = false
@@ -581,6 +639,12 @@ class PlayerActivity : AppCompatActivity() {
                 b.tvStatus.isVisible = false
                 hideError()
                 updateLiveUi()
+            }
+            // canal ao vivo "acabou" (o servidor fechou a conexão entre um episódio e outro,
+            // comum em canais 24h): reconecta na hora em vez de ficar parado
+            if (state == Player.STATE_ENDED && !isVod) {
+                reconnectLive()
+                return
             }
             if (state == Player.STATE_ENDED && isVod) {
                 saveProgress()
